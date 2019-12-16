@@ -6,6 +6,10 @@ A bash script to deploy Laravel projects
 
 First install following packages:
 
+```bash
+apt install -y cron curl htop make nano tmux unrar unzip vim wget
+```
+
 - [Git](https://github.com/alirezamaleky/handbook/blob/master/Git.md)
 - [Docker](https://github.com/alirezamaleky/handbook/blob/master/Docker.md)
 
