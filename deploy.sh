@@ -92,6 +92,8 @@ _pull() {
         sudo chmod -R 775 $LARAVEL_PATH/storage $LARAVEL_PATH/bootstrap/cache $LARAVEL_PATH/node_modules
         sudo chmod -R 600 $LARAVEL_PATH/storage/app/databases
     fi
+
+    chmod +x $LARAVEL_PATH/deploy.sh
 }
 
 _env() {
