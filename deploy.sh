@@ -64,6 +64,7 @@ _backup() {
             -p$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2) \
             --user=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2) \
             --databases $(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2) \
+            --ignore-table=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).migrations \
             --ignore-table=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).telescope_entries \
             --ignore-table=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).telescope_entries_tags \
             --ignore-table=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).telescope_monitoring \
