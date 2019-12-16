@@ -23,6 +23,12 @@ if [[ $PRODUCTION == "y" ]]; then
     CONTAINERS="$CONTAINERS php-worker" #mailu
 fi
 
+if [[ $CONTAINERS == *"mariadb"* ]]; then
+    DB_ENGINE=mariadb
+else
+    DB_ENGINE=mysql
+fi
+
 if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
     echo -n "DB_DATABASE: " && read DATABASE
     echo -n "DOMAIN: " && read DOMAIN
@@ -120,12 +126,7 @@ _env() {
         sed -i "s|PHP_FPM_INSTALL_SOAP=.*|PHP_FPM_INSTALL_SOAP=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_MYSQL_CLIENT=.*|WORKSPACE_INSTALL_MYSQL_CLIENT=true|" $LARADOCK_PATH/.env
 
-        if [[ $CONTAINERS == *"mariadb"* ]]; then
-            sed -i "s|PMA_DB_ENGINE=.*|PMA_DB_ENGINE=mariadb|" $LARADOCK_PATH/.env
-        else
-            sed -i "s|PMA_DB_ENGINE=.*|PMA_DB_ENGINE=mysql|" $LARADOCK_PATH/.env
-        fi
-
+        sed -i "s|PMA_DB_ENGINE=.*|PMA_DB_ENGINE=$DB_ENGINE|" $LARADOCK_PATH/.env
         sed -i "s|PMA_PORT=.*|PMA_PORT=$PMA_PORT|" $LARADOCK_PATH/.env
         sed -i "s|PMA_USER=.*|PMA_USER=$DB_USERNAME|" $LARADOCK_PATH/.env
         sed -i "s|PMA_PASSWORD=.*|PMA_PASSWORD=$DB_PASSWORD|" $LARADOCK_PATH/.env
@@ -143,6 +144,22 @@ _env() {
         sed -i "s|MAILU_RECAPTCHA_PRIVATE_KEY=.*|MAILU_RECAPTCHA_PRIVATE_KEY=$MAILU_RECAPTCHA_PRIVATE_KEY|" $LARADOCK_PATH/.env
         sed -i "s|MAILU_HOSTNAMES=.*|MAILU_HOSTNAMES=$MAILU_HOSTNAMES|" $LARADOCK_PATH/.env
         sed -i "s|MAILU_SECRET_KEY=.*|MAILU_SECRET_KEY=$MAILU_SECRET_KEY|" $LARADOCK_PATH/.env
+
+        if [[ $(docker-compose exec $DB_ENGINE "mysql -u root -e 'SHOW DATABASES;'") != *"ERROR"* ]]; then
+            SQL="mysql -u root"
+        elif [[ $(docker-compose exec $DB_ENGINE "mysql -u root -p${MYSQL_ROOT_PASSWORD} -e 'SHOW DATABASES;'") != *"ERROR"* ]]; then
+            SQL="mysql -u root -p${MYSQL_ROOT_PASSWORD}"
+        elif [[ $(docker-compose exec $DB_ENGINE "mysql -u root -proot -e 'SHOW DATABASES;'") != *"ERROR"* ]]; then
+            SQL="mysql -u root -proot"
+        elif [[ $(docker-compose exec $DB_ENGINE "mysql -u root -psecret -e 'SHOW DATABASES;'") != *"ERROR"* ]]; then
+            SQL="mysql -u root -psecret"
+        fi
+
+        docker-compose exec $DB_ENGINE \
+            $SQL -e "ALTER USER 'root'@'%' IDENTIFIED WITH mysql_native_password BY '${MYSQL_ROOT_PASSWORD}';" &&
+            $SQL -e "CREATE DATABASE IF NOT EXISTS $DB_DATABASE COLLATE 'utf8_general_ci';" &&
+            $SQL -e "CREATE USER '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';" &&
+            $SQL -e "GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'%';"
 
         echo "alias nr='npm run'" >>$LARADOCK_PATH/workspace/aliases.sh
         echo "alias pa='php artisan'" >>$LARADOCK_PATH/workspace/aliases.sh
@@ -164,7 +181,7 @@ _env() {
             sed -i "s|ZARINPAL_MERCHANT_ID=.*|ZARINPAL_MERCHANT_ID=$ZARINPAL_MERCHANT_ID|" $LARAVEL_PATH/.env
         fi
 
-        sed -i "s|DB_HOST=.*|DB_HOST=$(grep PMA_DB_ENGINE $LARADOCK_PATH/.env | cut -d '=' -f2)|" $LARAVEL_PATH/.env
+        sed -i "s|DB_HOST=.*|DB_HOST=$DB_ENGINE|" $LARAVEL_PATH/.env
         sed -i "s|REDIS_HOST=.*|REDIS_HOST=redis|" $LARAVEL_PATH/.env
 
         sed -i "s|LOG_CHANNEL=.*|LOG_CHANNEL=daily|" $LARAVEL_PATH/.env
