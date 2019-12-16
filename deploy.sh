@@ -18,10 +18,9 @@ else
     fi
 fi
 
+CONTAINERS="nginx mariadb redis phpmyadmin"
 if [[ $PRODUCTION == "y" ]]; then
-    CONTAINERS="nginx mysql redis phpmyadmin php-worker" #mailu
-else
-    CONTAINERS="nginx mysql redis phpmyadmin"
+    CONTAINERS="$CONTAINERS php-worker" #mailu
 fi
 
 if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
@@ -83,7 +82,12 @@ _pull() {
             find $LARAVEL_PATH -type f -exec chmod 644 {} \;
             find $LARAVEL_PATH -type d -exec chmod 755 {} \;
         fi
-        sudo chown -R ubuntu:ubuntu $LARAVEL_PATH
+
+        if [ -f /etc/lsb-release ] && [ ! -f /etc/lsb-release ]; then
+            sudo chown -R ubuntu:ubuntu $LARAVEL_PATH
+        else
+            sudo chown -R $USER:$USER $LARAVEL_PATH
+        fi
     else
         sudo chown -R $USER:$USER $LARAVEL_PATH
     fi
@@ -114,7 +118,13 @@ _env() {
 
         sed -i "s|PHP_FPM_INSTALL_SOAP=.*|PHP_FPM_INSTALL_SOAP=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_MYSQL_CLIENT=.*|WORKSPACE_INSTALL_MYSQL_CLIENT=true|" $LARADOCK_PATH/.env
-        sed -i "s|PMA_DB_ENGINE=.*|PMA_DB_ENGINE=mysql|" $LARADOCK_PATH/.env
+
+        if [[ $CONTAINERS == *"mariadb"* ]]; then
+            sed -i "s|PMA_DB_ENGINE=.*|PMA_DB_ENGINE=mariadb|" $LARADOCK_PATH/.env
+        else
+            sed -i "s|PMA_DB_ENGINE=.*|PMA_DB_ENGINE=mysql|" $LARADOCK_PATH/.env
+        fi
+
         sed -i "s|PMA_PORT=.*|PMA_PORT=$PMA_PORT|" $LARADOCK_PATH/.env
         sed -i "s|PMA_USER=.*|PMA_USER=$DB_USERNAME|" $LARADOCK_PATH/.env
         sed -i "s|PMA_PASSWORD=.*|PMA_PASSWORD=$DB_PASSWORD|" $LARADOCK_PATH/.env
@@ -183,7 +193,10 @@ _env() {
 _up() {
     cd $LARADOCK_PATH
 
-    docker system prune --volumes --force
+    if [[ $TARGET == "deploy" ]]; then
+        docker system prune --volumes --force
+    fi
+
     docker-compose up -d $CONTAINERS
 
     if [[ $TARGET == "deploy" ]]; then
@@ -256,7 +269,7 @@ if [[ $TARGET == "docker" ]]; then
     _composer
     _laravel
 else
-    if [[ ! -z "$USER" ]]; then
+    if [[ ! -z $USER ]]; then
         _backup
         _pull
         _env
