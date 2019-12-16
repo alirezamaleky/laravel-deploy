@@ -104,8 +104,7 @@ _env() {
         cp $LARADOCK_PATH/php-worker/supervisord.d/laravel-worker.conf.example $LARADOCK_PATH/php-worker/supervisord.d/laravel-worker.conf
 
         rm -f $LARADOCK_PATH/nginx/sites/default.conf
-        wget -N https://raw.githubusercontent.com/alirezamaleky/nginx-config/master/nginx.conf -P $LARAVEL_PATH/nginx.conf
-        mv $LARAVEL_PATH/nginx.conf $LARADOCK_PATH/nginx/sites/default.conf
+        wget -N https://raw.githubusercontent.com/alirezamaleky/nginx-config/master/default.conf -P $LARADOCK_PATH/nginx/sites
         sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/default.conf
 
         sed -i "s|PHP_FPM_INSTALL_SOAP=.*|PHP_FPM_INSTALL_SOAP=true|" $LARADOCK_PATH/.env
