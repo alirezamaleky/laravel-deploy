@@ -10,7 +10,7 @@ if [[ ! -d "$LARAVEL_PATH/laradock" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [
     INSTALL="y"
 fi
 
-if [[ $INSTALL == "y" ]]; then
+if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
     echo -n "Is the project in production? [y/N] " && read PRODUCTION
 else
     if [[ $(grep APP_ENV $LARAVEL_PATH/.env | cut -d '=' -f2) == "production" ]]; then
