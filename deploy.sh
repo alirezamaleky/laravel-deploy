@@ -93,11 +93,10 @@ _pull() {
 
 _env() {
     if [[ ! -d "$LARAVEL_PATH/laradock" ]]; then
-        cd $LARAVEL_PATH
-        wget https://github.com/laradock/laradock/archive/master.zip &&
-            unzip master.zip &&
-            mv laradock-master laradock &&
-            rm -f master.zip
+        wget -N https://github.com/laradock/laradock/archive/master.zip -P $LARAVEL_PATH &&
+            unzip $LARAVEL_PATH/master.zip -d $LARAVEL_PATH &&
+            mv $LARAVEL_PATH/laradock-master $LARAVEL_PATH/laradock &&
+            rm -f $LARAVEL_PATH/master.zip
     fi
 
     if [[ $INSTALL == "y" ]]; then
@@ -105,7 +104,8 @@ _env() {
         cp $LARADOCK_PATH/php-worker/supervisord.d/laravel-worker.conf.example $LARADOCK_PATH/php-worker/supervisord.d/laravel-worker.conf
 
         rm -f $LARADOCK_PATH/nginx/sites/default.conf
-        cp $LARAVEL_PATH/config/nginx.conf $LARADOCK_PATH/nginx/sites/default.conf
+        wget -N https://raw.githubusercontent.com/alirezamaleky/nginx-config/master/nginx.conf -P $LARAVEL_PATH/nginx.conf
+        mv $LARAVEL_PATH/nginx.conf $LARADOCK_PATH/nginx/sites/default.conf
         sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/default.conf
 
         sed -i "s|PHP_FPM_INSTALL_SOAP=.*|PHP_FPM_INSTALL_SOAP=true|" $LARADOCK_PATH/.env
