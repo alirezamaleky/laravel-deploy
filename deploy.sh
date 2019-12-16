@@ -145,22 +145,6 @@ _env() {
         sed -i "s|MAILU_HOSTNAMES=.*|MAILU_HOSTNAMES=$MAILU_HOSTNAMES|" $LARADOCK_PATH/.env
         sed -i "s|MAILU_SECRET_KEY=.*|MAILU_SECRET_KEY=$MAILU_SECRET_KEY|" $LARADOCK_PATH/.env
 
-        if [[ $(docker-compose exec $DB_ENGINE "mysql -u root -e 'SHOW DATABASES;'") != *"ERROR"* ]]; then
-            SQL="mysql -u root"
-        elif [[ $(docker-compose exec $DB_ENGINE "mysql -u root -p${MYSQL_ROOT_PASSWORD} -e 'SHOW DATABASES;'") != *"ERROR"* ]]; then
-            SQL="mysql -u root -p${MYSQL_ROOT_PASSWORD}"
-        elif [[ $(docker-compose exec $DB_ENGINE "mysql -u root -proot -e 'SHOW DATABASES;'") != *"ERROR"* ]]; then
-            SQL="mysql -u root -proot"
-        elif [[ $(docker-compose exec $DB_ENGINE "mysql -u root -psecret -e 'SHOW DATABASES;'") != *"ERROR"* ]]; then
-            SQL="mysql -u root -psecret"
-        fi
-
-        docker-compose exec $DB_ENGINE \
-            $SQL -e "ALTER USER 'root'@'%' IDENTIFIED WITH mysql_native_password BY '${MYSQL_ROOT_PASSWORD}';" &&
-            $SQL -e "CREATE DATABASE IF NOT EXISTS $DB_DATABASE COLLATE 'utf8_general_ci';" &&
-            $SQL -e "CREATE USER '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';" &&
-            $SQL -e "GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'%';"
-
         echo "alias nr='npm run'" >>$LARADOCK_PATH/workspace/aliases.sh
         echo "alias pa='php artisan'" >>$LARADOCK_PATH/workspace/aliases.sh
     fi
@@ -216,6 +200,26 @@ _up() {
     fi
 
     docker-compose up -d $CONTAINERS
+
+    if [[ $INSTALL == "y" ]]; then
+        SQL_RUNNER="docker-compose exec $DB_ENGINE"
+
+        if [[ $($SQL_RUNNER "mysql -u root -e 'SHOW DATABASES;'") != *"ERROR"* ]]; then
+            SQL="mysql -u root"
+        elif [[ $($SQL_RUNNER "mysql -u root -p${MYSQL_ROOT_PASSWORD} -e 'SHOW DATABASES;'") != *"ERROR"* ]]; then
+            SQL="mysql -u root -p${MYSQL_ROOT_PASSWORD}"
+        elif [[ $($SQL_RUNNER "mysql -u root -proot -e 'SHOW DATABASES;'") != *"ERROR"* ]]; then
+            SQL="mysql -u root -proot"
+        elif [[ $($SQL_RUNNER "mysql -u root -psecret -e 'SHOW DATABASES;'") != *"ERROR"* ]]; then
+            SQL="mysql -u root -psecret"
+        fi
+
+        $SQL_RUNNER \
+            $SQL -e "ALTER USER 'root'@'%' IDENTIFIED WITH mysql_native_password BY '${MYSQL_ROOT_PASSWORD}';" &&
+            $SQL -e "CREATE DATABASE IF NOT EXISTS $DB_DATABASE COLLATE 'utf8_general_ci';" &&
+            $SQL -e "CREATE USER '$DB_USERNAME'@'%' IDENTIFIED WITH mysql_native_password BY '$DB_PASSWORD';" &&
+            $SQL -e "GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'%';"
+    fi
 
     if [[ $TARGET == "deploy" ]]; then
         docker-compose exec workspace "/var/www/deploy.sh" docker
