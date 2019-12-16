@@ -6,10 +6,6 @@ SCRIPT_PATH=$(realpath $0)
 LARAVEL_PATH=$(dirname $SCRIPT_PATH)
 LARADOCK_PATH=$LARAVEL_PATH/laradock
 
-if [[ -f "$LARAVEL_PATH/.env" ]]; then
-    cp $LARAVEL_PATH/.env.example $LARAVEL_PATH/.env
-fi
-
 if [[ ! -d "$LARAVEL_PATH/laradock" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "$LARAVEL_PATH/node_modules" ]]; then
     INSTALL="y"
 fi
@@ -91,8 +87,11 @@ _pull() {
     else
         sudo chown -R $USER:$USER $LARAVEL_PATH
     fi
-    sudo chmod -R 775 $LARAVEL_PATH/storage $LARAVEL_PATH/bootstrap/cache $LARAVEL_PATH/node_modules
-    sudo chmod -R 600 $LARAVEL_PATH/storage/app/databases
+
+    if [[ $INSTALL != "y" ]]; then
+        sudo chmod -R 775 $LARAVEL_PATH/storage $LARAVEL_PATH/bootstrap/cache $LARAVEL_PATH/node_modules
+        sudo chmod -R 600 $LARAVEL_PATH/storage/app/databases
+    fi
 }
 
 _env() {
@@ -130,6 +129,10 @@ _env() {
 
         echo "alias nr='npm run'" >>$LARADOCK_PATH/workspace/aliases.sh
         echo "alias pa='php artisan'" >>$LARADOCK_PATH/workspace/aliases.sh
+    fi
+
+    if [[ $INSTALL == "y" ]]; then
+        cp $LARAVEL_PATH/.env.example $LARAVEL_PATH/.env
 
         if [[ $PRODUCTION == "y" ]]; then
             sed -i "s|APP_ENV=.*|APP_ENV=production|" $LARAVEL_PATH/.env
