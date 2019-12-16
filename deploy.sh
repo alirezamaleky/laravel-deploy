@@ -19,9 +19,9 @@ else
 fi
 
 if [[ $PRODUCTION == "y" ]]; then
-    CONTAINERS="nginx mariadb redis phpmyadmin php-worker" #mailu
+    CONTAINERS="nginx mysql redis phpmyadmin php-worker" #mailu
 else
-    CONTAINERS="nginx mariadb redis phpmyadmin"
+    CONTAINERS="nginx mysql redis phpmyadmin"
 fi
 
 if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
@@ -114,11 +114,15 @@ _env() {
 
         sed -i "s|PHP_FPM_INSTALL_SOAP=.*|PHP_FPM_INSTALL_SOAP=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_MYSQL_CLIENT=.*|WORKSPACE_INSTALL_MYSQL_CLIENT=true|" $LARADOCK_PATH/.env
-        sed -i "s|PMA_DB_ENGINE=.*|PMA_DB_ENGINE=mariadb|" $LARADOCK_PATH/.env
+        sed -i "s|PMA_DB_ENGINE=.*|PMA_DB_ENGINE=mysql|" $LARADOCK_PATH/.env
         sed -i "s|PMA_PORT=.*|PMA_PORT=$PMA_PORT|" $LARADOCK_PATH/.env
         sed -i "s|PMA_USER=.*|PMA_USER=$DB_USERNAME|" $LARADOCK_PATH/.env
         sed -i "s|PMA_PASSWORD=.*|PMA_PASSWORD=$DB_PASSWORD|" $LARADOCK_PATH/.env
         sed -i "s|PMA_ROOT_PASSWORD=.*|PMA_ROOT_PASSWORD=$DB_ROOT_PASSWORD|" $LARADOCK_PATH/.env
+        sed -i "s|MYSQL_DATABASE=.*|MYSQL_DATABASE=$DB_DATABASE|" $LARADOCK_PATH/.env
+        sed -i "s|MYSQL_USER=.*|MYSQL_USER=$DB_USERNAME|" $LARADOCK_PATH/.env
+        sed -i "s|MYSQL_PASSWORD=.*|MYSQL_PASSWORD=$DB_PASSWORD|" $LARADOCK_PATH/.env
+        sed -i "s|MYSQL_ROOT_PASSWORD=.*|MYSQL_ROOT_PASSWORD=$DB_ROOT_PASSWORD|" $LARADOCK_PATH/.env
         sed -i "s|MARIADB_DATABASE=.*|MARIADB_DATABASE=$DB_DATABASE|" $LARADOCK_PATH/.env
         sed -i "s|MARIADB_USER=.*|MARIADB_USER=$DB_USERNAME|" $LARADOCK_PATH/.env
         sed -i "s|MARIADB_PASSWORD=.*|MARIADB_PASSWORD=$DB_PASSWORD|" $LARADOCK_PATH/.env
@@ -149,7 +153,7 @@ _env() {
             sed -i "s|ZARINPAL_MERCHANT_ID=.*|ZARINPAL_MERCHANT_ID=$ZARINPAL_MERCHANT_ID|" $LARAVEL_PATH/.env
         fi
 
-        sed -i "s|DB_HOST=.*|DB_HOST=mariadb|" $LARAVEL_PATH/.env
+        sed -i "s|DB_HOST=.*|DB_HOST=$(grep PMA_DB_ENGINE $LARADOCK_PATH/.env | cut -d '=' -f2)|" $LARAVEL_PATH/.env
         sed -i "s|REDIS_HOST=.*|REDIS_HOST=redis|" $LARAVEL_PATH/.env
 
         sed -i "s|LOG_CHANNEL=.*|LOG_CHANNEL=daily|" $LARAVEL_PATH/.env
@@ -203,11 +207,6 @@ _yarn() {
         yarn install --production --pure-lockfile --non-interactive &&
             yarn run prod
     fi
-
-    if [[ $PRODUCTION == "y" ]]; then
-        yarn global add html-minifier
-        html-minifier --collapse-whitespace --remove-comments --remove-optional-tags --remove-redundant-attributes --remove-script-type-attributes --remove-tag-whitespace --use-short-doctype --minify-css true --minify-js true --input-dir $LARAVEL_PATH/storage/framework/views --output-dir $LARAVEL_PATH/storage/framework/views --file-ext "php"
-    fi
 }
 
 _composer() {
@@ -244,6 +243,11 @@ _laravel() {
         php artisan optimize
         php artisan view:clear
         php artisan view:cache
+    fi
+
+    if [[ $PRODUCTION == "y" ]]; then
+        yarn global add html-minifier
+        html-minifier --collapse-whitespace --remove-comments --remove-optional-tags --remove-redundant-attributes --remove-script-type-attributes --remove-tag-whitespace --use-short-doctype --minify-css true --minify-js true --input-dir $LARAVEL_PATH/storage/framework/views --output-dir $LARAVEL_PATH/storage/framework/views --file-ext "php"
     fi
 }
 
