@@ -6,6 +6,10 @@ SCRIPT_PATH=$(realpath $0)
 LARAVEL_PATH=$(dirname $SCRIPT_PATH)
 LARADOCK_PATH=$LARAVEL_PATH/laradock
 
+if [[ -f "$LARAVEL_PATH/.env" ]]; then
+    cp $LARAVEL_PATH/.env.example $LARAVEL_PATH/.env
+fi
+
 if [[ ! -d "$LARAVEL_PATH/laradock" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "$LARAVEL_PATH/node_modules" ]]; then
     INSTALL="y"
 fi
