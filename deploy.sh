@@ -185,6 +185,7 @@ _up() {
     if [[ $TARGET == "deploy" ]]; then
         docker-compose exec workspace "/var/www/deploy.sh" docker
     else
+        printf "\n\n\n\n\n Welcome to laradock workspace! \n\n\n\n\n"
         docker-compose exec workspace bash
     fi
 }
@@ -251,8 +252,10 @@ if [[ $TARGET == "docker" ]]; then
     _composer
     _laravel
 else
-    _backup
-    _pull
-    _env
-    _up
+    if [[ ! -z "$USER" ]]; then
+        _backup
+        _pull
+        _env
+        _up
+    fi
 fi
