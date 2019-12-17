@@ -193,32 +193,30 @@ _env() {
 }
 
 _sql() {
-    SQL_RUNNER=docker-compose exec $DB_ENGINE
+    cd $LARADOCK_PATH
+    docker-compose up -d $DB_ENGINE
 
-    if [[ $($SQL_RUNNER mysql -u root -p$MYSQL_ROOT_PASSWORD -e "SHOW DATABASES;") == *"ERROR"* ]] ||
-        [[ $($SQL_RUNNER mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;") == *"ERROR"* ]]; then
+    if [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$MYSQL_ROOT_PASSWORD -e "SHOW DATABASES;") == *"ERROR"* ]] ||
+        [[ $(docker-compose exec $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;") == *"ERROR"* ]]; then
         if [[ $INSTALL == "y" ]]; then
             docker-compose up -d --build --force-recreate --renew-anon-volumes $DB_ENGINE
         fi
 
-        if [[ $($SQL_RUNNER mysql -u root -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-            SQL=mysql -u root
-        elif [[ $($SQL_RUNNER mysql -u root -p$MYSQL_ROOT_PASSWORD -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-            SQL=mysql -u root -p$MYSQL_ROOT_PASSWORD
-        elif [[ $($SQL_RUNNER mysql -u root -proot -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-            SQL=mysql -u root -proot
-        elif [[ $($SQL_RUNNER mysql -u root -psecret -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-            SQL=mysql -u root -psecret
-        fi
+        SQL="USE MYSQL;" \
+            "ALTER USER 'root'@'localhost' IDENTIFIED BY '$DB_ROOT_PASSWORD';" \
+            "CREATE DATABASE IF NOT EXISTS $DB_DATABASE COLLATE 'utf8_general_ci';" \
+            "CREATE USER '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';" \
+            "GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'localhost';" \
+            "FLUSH PRIVILEGES;"
 
-        if [[ ! -z $SQL ]]; then
-            echo $($SQL_RUNNER \
-                $SQL -e "USE MYSQL;" &&
-                $SQL -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$DB_ROOT_PASSWORD';" &&
-                $SQL -e "CREATE DATABASE IF NOT EXISTS $DB_DATABASE COLLATE 'utf8_general_ci';" &&
-                $SQL -e "CREATE USER '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';" &&
-                $SQL -e "GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'localhost';" &&
-                $SQL -e "FLUSH PRIVILEGES;")
+        if [[ $(docker-compose exec $DB_ENGINE mysql -u root -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+            docker-compose exec $DB_ENGINE mysql -u root -e $SQL
+        elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$MYSQL_ROOT_PASSWORD -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+            docker-compose exec $DB_ENGINE mysql -u root -p$MYSQL_ROOT_PASSWORD -e $SQL
+        elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -proot -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+            docker-compose exec $DB_ENGINE mysql -u root -proot -e $SQL
+        elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -psecret -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+            docker-compose exec $DB_ENGINE mysql -u root -psecret -e $SQL
         fi
     fi
 }
