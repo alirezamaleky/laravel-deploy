@@ -192,6 +192,37 @@ _env() {
     fi
 }
 
+_sql() {
+    SQL_RUNNER=docker-compose exec $DB_ENGINE
+
+    if [[ $($SQL_RUNNER mysql -u root -p$MYSQL_ROOT_PASSWORD -e "SHOW DATABASES;") == *"ERROR"* ]] ||
+        [[ $($SQL_RUNNER mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;") == *"ERROR"* ]]; then
+        if [[ $INSTALL == "y" ]]; then
+            docker-compose up -d --build --force-recreate --renew-anon-volumes $DB_ENGINE
+        fi
+
+        if [[ $($SQL_RUNNER mysql -u root -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+            SQL=mysql -u root
+        elif [[ $($SQL_RUNNER mysql -u root -p$MYSQL_ROOT_PASSWORD -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+            SQL=mysql -u root -p$MYSQL_ROOT_PASSWORD
+        elif [[ $($SQL_RUNNER mysql -u root -proot -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+            SQL=mysql -u root -proot
+        elif [[ $($SQL_RUNNER mysql -u root -psecret -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+            SQL=mysql -u root -psecret
+        fi
+
+        if [[ ! -z $SQL ]]; then
+            echo $($SQL_RUNNER \
+                $SQL -e "USE MYSQL;" &&
+                $SQL -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$DB_ROOT_PASSWORD';" &&
+                $SQL -e "CREATE DATABASE IF NOT EXISTS $DB_DATABASE COLLATE 'utf8_general_ci';" &&
+                $SQL -e "CREATE USER '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';" &&
+                $SQL -e "GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'localhost';" &&
+                $SQL -e "FLUSH PRIVILEGES;")
+        fi
+    fi
+}
+
 _up() {
     cd $LARADOCK_PATH
 
@@ -200,34 +231,6 @@ _up() {
     fi
 
     docker-compose up -d $CONTAINERS
-
-    if [[ $INSTALL == "y" ]]; then
-        SQL_RUNNER="docker-compose exec $DB_ENGINE"
-        if [[ $($SQL_RUNNER "mysql -u root -e -p$MYSQL_ROOT_PASSWORD 'SHOW DATABASES;'") == *"ERROR"* ]] || [[ $($SQL_RUNNER "mysql -u $DB_USERNAME -e -p$DB_PASSWORD 'SHOW DATABASES;'") == *"ERROR"* ]]; then
-            docker-compose up -d --build --force-recreate --renew-anon-volumes $DB_ENGINE
-
-            if [[ $($SQL_RUNNER "mysql -u root -e 'SHOW DATABASES;'") != *"ERROR"* ]]; then
-                SQL="mysql -u root"
-            elif [[ $($SQL_RUNNER "mysql -u root -p$MYSQL_ROOT_PASSWORD -e 'SHOW DATABASES;'") != *"ERROR"* ]]; then
-                SQL="mysql -u root -p$MYSQL_ROOT_PASSWORD"
-            elif [[ $($SQL_RUNNER "mysql -u root -proot -e 'SHOW DATABASES;'") != *"ERROR"* ]]; then
-                SQL="mysql -u root -proot"
-            elif [[ $($SQL_RUNNER "mysql -u root -psecret -e 'SHOW DATABASES;'") != *"ERROR"* ]]; then
-                SQL="mysql -u root -psecret"
-            fi
-            echo "SQL: $SQL"
-
-            if [[ ! -z $SQL ]]; then
-                echo $($SQL_RUNNER \
-                    $SQL -e "USE MYSQL;" &&
-                    $SQL -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$DB_ROOT_PASSWORD';" &&
-                    $SQL -e "CREATE DATABASE IF NOT EXISTS $DB_DATABASE COLLATE 'utf8_general_ci';" &&
-                    $SQL -e "CREATE USER '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';" &&
-                    $SQL -e "GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'localhost';" &&
-                    $SQL -e "FLUSH PRIVILEGES;")
-            fi
-        fi
-    fi
 
     if [[ $TARGET == "deploy" ]]; then
         docker-compose exec workspace "/var/www/deploy.sh" docker
@@ -303,6 +306,7 @@ else
         _backup
         _pull
         _env
+        _sql
         _up
     fi
 fi
