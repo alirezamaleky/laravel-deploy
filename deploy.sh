@@ -20,7 +20,7 @@ fi
 
 CONTAINERS="nginx mariadb redis phpmyadmin"
 if [[ $PRODUCTION == "y" ]]; then
-    CONTAINERS="$CONTAINERS php-worker" #mailu
+    CONTAINERS+="php-worker" #mailu
 fi
 
 if [[ $CONTAINERS == *"mariadb"* ]]; then
@@ -108,6 +108,13 @@ _pull() {
 }
 
 _env() {
+    if ! grep -q "deploy.sh" $LARAVEL_PATH/.gitignore; then
+        sudo echo "deploy.sh" >>$LARAVEL_PATH/.gitignore
+    fi
+    if ! grep -q "laradock" $LARAVEL_PATH/.gitignore; then
+        sudo echo "laradock" >>$LARAVEL_PATH/.gitignore
+    fi
+
     if [[ ! -d "$LARAVEL_PATH/laradock" ]]; then
         wget -N https://github.com/laradock/laradock/archive/master.zip -P $LARAVEL_PATH &&
             unzip $LARAVEL_PATH/master.zip -d $LARAVEL_PATH &&
