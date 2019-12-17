@@ -231,7 +231,11 @@ _up() {
         docker system prune --volumes --force
     fi
 
-    docker-compose up -d $CONTAINERS
+    if [[ $INSTALL == "y" ]]; then
+        docker-compose up -d $CONTAINERS
+    else
+        docker-compose up --build -d $CONTAINERS
+    fi
 
     if [[ $TARGET == "deploy" ]]; then
         docker-compose exec workspace "/var/www/deploy.sh" docker
