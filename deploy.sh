@@ -201,7 +201,7 @@ _sql() {
         if [[ $INSTALL == "y" ]]; then
             docker-compose stop $DB_ENGINE
             rm -rf ~/.laradock/data/$DB_ENGINE
-            docker-compose up -d $DB_ENGINE
+            docker-compose up -d --build --force-recreate $DB_ENGINE
         fi
 
         SQL="USE MYSQL;" \
