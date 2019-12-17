@@ -204,6 +204,7 @@ _up() {
     if [[ $INSTALL == "y" ]]; then
         SQL_RUNNER="docker-compose exec $DB_ENGINE"
         if [[ $($SQL_RUNNER "mysql -u root -e -p$MYSQL_ROOT_PASSWORD 'SHOW DATABASES;'") == *"ERROR"* ]] || [[ $($SQL_RUNNER "mysql -u $DB_USERNAME -e -p$DB_PASSWORD 'SHOW DATABASES;'") == *"ERROR"* ]]; then
+            docker-compose up -d --build --force-recreate --renew-anon-volumes $DB_ENGINE
 
             if [[ $($SQL_RUNNER "mysql -u root -e 'SHOW DATABASES;'") != *"ERROR"* ]]; then
                 SQL="mysql -u root"
@@ -215,11 +216,15 @@ _up() {
                 SQL="mysql -u root -psecret"
             fi
 
-            $SQL_RUNNER \
-                $SQL -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$DB_ROOT_PASSWORD';" &&
-                $SQL -e "CREATE DATABASE IF NOT EXISTS $DB_DATABASE COLLATE 'utf8_general_ci';" &&
-                $SQL -e "CREATE USER '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';" &&
-                $SQL -e "GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'localhost';"
+            if [[ ! -z $SQL ]]; then
+                $SQL_RUNNER \
+                    $SQL -e "USE MYSQL;" &&
+                    $SQL -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$DB_ROOT_PASSWORD';" &&
+                    $SQL -e "CREATE DATABASE IF NOT EXISTS $DB_DATABASE COLLATE 'utf8_general_ci';" &&
+                    $SQL -e "CREATE USER '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';" &&
+                    $SQL -e "GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'localhost';" &&
+                    $SQL -e "FLUSH PRIVILEGES;"
+            fi
         fi
     fi
 
