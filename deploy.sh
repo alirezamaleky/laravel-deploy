@@ -109,10 +109,10 @@ _pull() {
 
 _env() {
     if ! grep -q "deploy.sh" $LARAVEL_PATH/.gitignore; then
-        sudo echo "deploy.sh" >>$LARAVEL_PATH/.gitignore
+        echo "deploy.sh" >>$LARAVEL_PATH/.gitignore
     fi
     if ! grep -q "laradock" $LARAVEL_PATH/.gitignore; then
-        sudo echo "laradock" >>$LARAVEL_PATH/.gitignore
+        echo "laradock" >>$LARAVEL_PATH/.gitignore
     fi
 
     if [[ ! -d "$LARAVEL_PATH/laradock" ]]; then
@@ -154,6 +154,13 @@ _env() {
 
         echo "alias nr='npm run'" >>$LARADOCK_PATH/workspace/aliases.sh
         echo "alias pa='php artisan'" >>$LARADOCK_PATH/workspace/aliases.sh
+    fi
+
+    if ! grep -q "max_allowed_packet" $LARADOCK_PATH/$DB_ENGINE/my.cnf; then
+        echo "[mysqld]" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
+        echo "max_allowed_packet=16M" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
+    else
+        sed -i "s|max_allowed_packet=.*|max_allowed_packet=16M|" $LARADOCK_PATH/$DB_ENGINE/my.cnf
     fi
 
     if [[ $INSTALL == "y" ]]; then
