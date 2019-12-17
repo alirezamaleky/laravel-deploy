@@ -215,15 +215,16 @@ _up() {
             elif [[ $($SQL_RUNNER "mysql -u root -psecret -e 'SHOW DATABASES;'") != *"ERROR"* ]]; then
                 SQL="mysql -u root -psecret"
             fi
+            echo "SQL: $SQL"
 
             if [[ ! -z $SQL ]]; then
-                $SQL_RUNNER \
+                echo $($SQL_RUNNER \
                     $SQL -e "USE MYSQL;" &&
                     $SQL -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$DB_ROOT_PASSWORD';" &&
                     $SQL -e "CREATE DATABASE IF NOT EXISTS $DB_DATABASE COLLATE 'utf8_general_ci';" &&
                     $SQL -e "CREATE USER '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';" &&
                     $SQL -e "GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'localhost';" &&
-                    $SQL -e "FLUSH PRIVILEGES;"
+                    $SQL -e "FLUSH PRIVILEGES;")
             fi
         fi
     fi
