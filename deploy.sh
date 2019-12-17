@@ -199,7 +199,7 @@ _sql() {
     if [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]] ||
         [[ $(docker-compose exec $DB_ENGINE mysql -u $(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2) -p$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]]; then
         if [[ $INSTALL == "y" ]]; then
-            docker-compose stop $DB_ENGINE
+            docker-compose rm --force --stop -v $DB_ENGINE
             rm -rf ~/.laradock/data/$DB_ENGINE
             docker-compose up -d --build --force-recreate $DB_ENGINE
         fi
@@ -232,7 +232,7 @@ _up() {
     if [[ $INSTALL == "y" ]]; then
         docker-compose up -d $CONTAINERS
     else
-        docker-compose up --build -d $CONTAINERS
+        docker-compose up -d --build $CONTAINERS
     fi
 
     if [[ $TARGET == "deploy" ]]; then
