@@ -196,8 +196,6 @@ _sql() {
     cd $LARADOCK_PATH
     docker-compose up -d $DB_ENGINE
 
-    $(grep APP_ENV $LARAVEL_PATH/.env | cut -d '=' -f2)
-
     if [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]] ||
         [[ $(docker-compose exec $DB_ENGINE mysql -u $(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2) -p$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]]; then
         if [[ $INSTALL == "y" ]]; then
@@ -210,7 +208,7 @@ _sql() {
             "CREATE USER '$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)'@'localhost' IDENTIFIED BY '$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)';" \
             "GRANT ALL ON $(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).* TO '$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)'@'localhost';" \
             "FLUSH PRIVILEGES;" \
-            "exit;"
+            "QUIT;"
 
         if [[ $(docker-compose exec $DB_ENGINE mysql -u root -e "SHOW DATABASES;") != *"ERROR"* ]]; then
             docker-compose exec $DB_ENGINE mysql -u root -e $SQL
