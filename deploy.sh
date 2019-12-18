@@ -18,7 +18,7 @@ else
     fi
 fi
 
-CONTAINERS="nginx mariadb redis phpmyadmin"
+CONTAINERS="nginx mariadb redis phpmyadmin "
 if [[ $PRODUCTION == "y" ]]; then
     CONTAINERS+="php-worker" #mailu
 fi
