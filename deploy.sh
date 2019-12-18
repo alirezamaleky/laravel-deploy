@@ -236,17 +236,6 @@ _up() {
     fi
 }
 
-__reset() {
-    chown -R laradock:laradock $LARAVEL_PATH
-    if [[ $INSTALL != "y" ]]; then
-        find $LARAVEL_PATH -type f -exec chmod 644 {} \;
-        find $LARAVEL_PATH -type d -exec chmod 755 {} \;
-        chmod -R 775 $LARAVEL_PATH/storage $LARAVEL_PATH/bootstrap/cache $LARAVEL_PATH/node_modules
-        chmod -R 600 $LARAVEL_PATH/storage/app/databases
-    fi
-    chmod +x $LARAVEL_PATH/deploy.sh
-}
-
 _yarn() {
     killall yarn npm
     if [[ $PRODUCTION == "y" ]]; then
@@ -304,11 +293,22 @@ _laravel() {
     fi
 }
 
+_permission() {
+    chown -R laradock:laradock $LARAVEL_PATH
+    if [[ $INSTALL == "y" ]]; then
+        find $LARAVEL_PATH -type f -exec chmod 644 {} \;
+        find $LARAVEL_PATH -type d -exec chmod 755 {} \;
+    fi
+    chmod -R 775 $LARAVEL_PATH/storage $LARAVEL_PATH/bootstrap/cache $LARAVEL_PATH/node_modules
+    chmod -R 600 $LARAVEL_PATH/.env $LARAVEL_PATH/storage/app/databases
+    chmod +x $LARAVEL_PATH/deploy.sh
+}
+
 if [[ $TARGET == "docker" ]]; then
-    __reset
     _yarn
     _composer
     _laravel
+    _permission
 else
     if [[ ! -z $USER ]]; then
         _backup
