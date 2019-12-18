@@ -59,9 +59,9 @@ if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
 fi
 
 _backup() {
+    mkdir -p $LARAVEL_PATH/storage/app/databases
     if [[ $TARGET == "deploy" ]] && [[ $INSTALL != "y" ]] && [[ $PRODUCTION == "y" ]]; then
         cd $LARADOCK_PATH
-        mkdir -p $LARAVEL_PATH/storage/app/databases
         docker-compose exec workspace mysqldump \
             --force \
             --skip-lock-tables \
