@@ -218,7 +218,7 @@ _sql() {
         if [[ $INSTALL == "y" ]]; then
             docker-compose rm --force --stop -v $DB_ENGINE
             rm -rf ~/.laradock/data/$DB_ENGINE
-            docker-compose up -d --build --force-recreate $DB_ENGINE
+            docker-compose up -d --force-recreate $DB_ENGINE
         fi
 
         SQL="ALTER USER 'root'@'localhost' IDENTIFIED BY '$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)';"
@@ -246,11 +246,7 @@ _up() {
         docker system prune --volumes --force
     fi
 
-    if [[ $INSTALL == "y" ]]; then
-        docker-compose up -d $CONTAINERS
-    else
-        docker-compose up -d --build $CONTAINERS
-    fi
+    docker-compose up -d $CONTAINERS
 
     if [[ $TARGET == "deploy" ]]; then
         docker-compose exec workspace "/var/www/deploy.sh" docker
