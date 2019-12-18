@@ -86,28 +86,6 @@ _pull() {
         git checkout -f $LARAVEL_PATH
         git pull origin master
     fi
-
-    if [[ $PRODUCTION == "y" ]]; then
-        if [[ $TARGET == "deploy" ]]; then
-            find $LARAVEL_PATH -type f -exec chmod 644 {} \;
-            find $LARAVEL_PATH -type d -exec chmod 755 {} \;
-        fi
-
-        if [ -f /etc/lsb-release ] && [ ! -f /etc/lsb-release ]; then
-            sudo chown -R ubuntu:ubuntu $LARAVEL_PATH
-        else
-            sudo chown -R $USER:$USER $LARAVEL_PATH
-        fi
-    else
-        sudo chown -R $USER:$USER $LARAVEL_PATH
-    fi
-
-    if [[ $INSTALL != "y" ]]; then
-        sudo chmod -R 775 $LARAVEL_PATH/storage $LARAVEL_PATH/bootstrap/cache $LARAVEL_PATH/node_modules
-        sudo chmod -R 600 $LARAVEL_PATH/storage/app/databases
-    fi
-
-    chmod +x $LARAVEL_PATH/deploy.sh
 }
 
 _env() {
@@ -258,6 +236,17 @@ _up() {
     fi
 }
 
+__reset() {
+    chown -R laradock:laradock $LARAVEL_PATH
+    if [[ $INSTALL != "y" ]]; then
+        find $LARAVEL_PATH -type f -exec chmod 644 {} \;
+        find $LARAVEL_PATH -type d -exec chmod 755 {} \;
+        chmod -R 775 $LARAVEL_PATH/storage $LARAVEL_PATH/bootstrap/cache $LARAVEL_PATH/node_modules
+        chmod -R 600 $LARAVEL_PATH/storage/app/databases
+    fi
+    chmod +x $LARAVEL_PATH/deploy.sh
+}
+
 _yarn() {
     killall yarn npm
     if [[ $PRODUCTION == "y" ]]; then
@@ -316,6 +305,7 @@ _laravel() {
 }
 
 if [[ $TARGET == "docker" ]]; then
+    __reset
     _yarn
     _composer
     _laravel
