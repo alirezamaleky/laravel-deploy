@@ -36,9 +36,6 @@ if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
     echo -n "APP_NAME: " && read APP_NAME
     echo -n "MAIL_USERNAME: " && read MAIL_USERNAME
     echo -n "MAIL_ENCRYPTION: " && read MAIL_ENCRYPTION
-    echo -n "FTP_HOST: " && read FTP_HOST
-    echo -n "FTP_USERNAME: " && read FTP_USERNAME
-    echo -n "FTP_PASSWORD: " && read FTP_PASSWORD
     echo -n "PMA_PORT: " && read PMA_PORT
     echo -n "MAILU_RECAPTCHA_PUBLIC_KEY: " && read MAILU_RECAPTCHA_PUBLIC_KEY
     echo -n "MAILU_RECAPTCHA_PRIVATE_KEY: " && read MAILU_RECAPTCHA_PRIVATE_KEY
@@ -47,9 +44,8 @@ if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
     DB_USERNAME="${DATABASE}_user"
     DB_PASSWORD=$(openssl rand -base64 15)
     DB_ROOT_PASSWORD=$(openssl rand -base64 15)
+    MAIL_HOST="mail.$DOMAIN"
     MAIL_PASSWORD=$(openssl rand -base64 15)
-    MAILU_HOSTNAMES="mail.$DOMAIN"
-    MAILU_SECRET_KEY=$(openssl rand -base64 15)
 
     printf "\nDB_DATABASE=$DB_DATABASE"
     printf "\nDB_USERNAME=$DB_USERNAME"
@@ -130,8 +126,10 @@ _env() {
         sed -i "s|MAILU_DOMAIN=.*|MAILU_DOMAIN=$DOMAIN|" $LARADOCK_PATH/.env
         sed -i "s|MAILU_RECAPTCHA_PUBLIC_KEY=.*|MAILU_RECAPTCHA_PUBLIC_KEY=$MAILU_RECAPTCHA_PUBLIC_KEY|" $LARADOCK_PATH/.env
         sed -i "s|MAILU_RECAPTCHA_PRIVATE_KEY=.*|MAILU_RECAPTCHA_PRIVATE_KEY=$MAILU_RECAPTCHA_PRIVATE_KEY|" $LARADOCK_PATH/.env
-        sed -i "s|MAILU_HOSTNAMES=.*|MAILU_HOSTNAMES=$MAILU_HOSTNAMES|" $LARADOCK_PATH/.env
-        sed -i "s|MAILU_SECRET_KEY=.*|MAILU_SECRET_KEY=$MAILU_SECRET_KEY|" $LARADOCK_PATH/.env
+        sed -i "s|MAILU_HOSTNAMES=.*|MAILU_HOSTNAMES=$MAIL_HOST|" $LARADOCK_PATH/.env
+        sed -i "s|MAILU_SECRET_KEY=.*|MAILU_SECRET_KEY=$(openssl rand -base64 16)|" $LARADOCK_PATH/.env
+        sed -i "s|MAILU_INIT_ADMIN_USERNAME=.*|MAILU_INIT_ADMIN_USERNAME=$MAIL_USERNAME|" $LARADOCK_PATH/.env
+        sed -i "s|MAILU_INIT_ADMIN_PASSWORD=.*|MAILU_INIT_ADMIN_PASSWORD=$MAIL_PASSWORD|" $LARADOCK_PATH/.env
 
         echo "alias nr='npm run'" >>$LARADOCK_PATH/workspace/aliases.sh
         echo "alias pa='php artisan'" >>$LARADOCK_PATH/workspace/aliases.sh
@@ -150,13 +148,15 @@ _env() {
         if [[ $PRODUCTION == "y" ]]; then
             sed -i "s|APP_ENV=.*|APP_ENV=production|" $LARAVEL_PATH/.env
             sed -i "s|APP_DEBUG=.*|APP_DEBUG=false|" $LARAVEL_PATH/.env
+            sed -i "s|MAIL_HOST=.*|MAIL_HOST=$MAIL_HOST|" $LARAVEL_PATH/.env
             sed -i "s|MAIL_USERNAME=.*|MAIL_USERNAME=$MAIL_USERNAME|" $LARAVEL_PATH/.env
             sed -i "s|MAIL_PASSWORD=.*|MAIL_PASSWORD=$MAIL_PASSWORD|" $LARAVEL_PATH/.env
             sed -i "s|MAIL_ENCRYPTION=.*|MAIL_ENCRYPTION=$MAIL_ENCRYPTION|" $LARAVEL_PATH/.env
-            sed -i "s|FTP_HOST=.*|FTP_HOST=$FTP_HOST|" $LARAVEL_PATH/.env
-            sed -i "s|FTP_USERNAME=.*|FTP_USERNAME=$FTP_USERNAME|" $LARAVEL_PATH/.env
-            sed -i "s|FTP_PASSWORD=.*|FTP_PASSWORD=$FTP_PASSWORD|" $LARAVEL_PATH/.env
             sed -i "s|RESPONSE_CACHE_ENABLED=.*|RESPONSE_CACHE_ENABLED=true|" $LARAVEL_PATH/.env
+        else
+            sed -i "s|APP_ENV=.*|APP_ENV=local|" $LARAVEL_PATH/.env
+            sed -i "s|APP_DEBUG=.*|APP_DEBUG=true|" $LARAVEL_PATH/.env
+            sed -i "s|RESPONSE_CACHE_ENABLED=.*|RESPONSE_CACHE_ENABLED=false|" $LARAVEL_PATH/.env
         fi
 
         sed -i "s|DB_HOST=.*|DB_HOST=$DB_ENGINE|" $LARAVEL_PATH/.env
