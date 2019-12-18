@@ -259,16 +259,16 @@ _up() {
 
 _yarn() {
     killall yarn npm
-    if [[ $PRODUCTION != "y" ]]; then
+    if [[ $PRODUCTION == "y" ]]; then
+        yarn install --production --pure-lockfile --non-interactive &&
+            yarn run prod
+    else
         if [[ $INSTALL == "y" ]]; then
             yarn install
         else
             yarn upgrade
         fi
         yarn run dev
-    else
-        yarn install --production --pure-lockfile --non-interactive &&
-            yarn run prod
     fi
 }
 
@@ -276,14 +276,14 @@ _composer() {
     killall composer
     composer global require hirak/prestissimo
 
-    if [[ $PRODUCTION != "y" ]]; then
+    if [[ $PRODUCTION == "y" ]]; then
+        composer install --optimize-autoloader --no-dev --no-interaction --prefer-dist
+    else
         if [[ $INSTALL == "y" ]]; then
             composer install
         else
             composer update
         fi
-    else
-        composer install --optimize-autoloader --no-dev --no-interaction --prefer-dist
     fi
 
     if [[ $INSTALL == "y" ]]; then
