@@ -60,7 +60,7 @@ if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
 fi
 
 _backup() {
-    if [[ $TARGET != "docker" ]] && [[ ! -d "$LARAVEL_PATH/storage/app/databases" ]]; then
+    if [[ ! -d "$LARAVEL_PATH/storage/app/databases" ]] && [[ $TARGET != "docker" ]]; then
         mkdir -p $LARAVEL_PATH/storage/app/databases
     fi
     if [[ $TARGET == "deploy" ]] && [[ $INSTALL != "y" ]] && [[ $PRODUCTION == "y" ]]; then
@@ -176,9 +176,11 @@ _env() {
         sed -i "s|DB_PASSWORD=.*|DB_PASSWORD=$DB_PASSWORD|" $LARAVEL_PATH/.env
     fi
 
-    if [[ $PRODUCTION == "y" ]]; then
+    if [[ $PRODUCTION == "y" ]] && [[ $TARGET != "docker" ]]; then
         if ! grep -q "$LARADOCK_PATH && docker-compose up -d" /etc/crontab; then
             sudo echo "@reboot   root   cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
+        else
+            sed -i "$LARADOCK_PATH && docker-compose up -d*|$LARADOCK_PATH && docker-compose up -d $CONTAINERS|" $LARAVEL_PATH/.env
         fi
 
         if ! grep -q "$SCRIPT_PATH deploy" /etc/crontab; then
