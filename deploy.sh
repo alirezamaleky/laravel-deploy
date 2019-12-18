@@ -18,10 +18,10 @@ else
     fi
 fi
 
-CONTAINERS="nginx mariadb redis phpmyadmin "
+CONTAINERS="nginx mariadb redis phpmyadmin"
 if [[ $PRODUCTION == "y" ]]; then
-    CONTAINERS+="php-worker"
-    # CONTAINERS+="mailu"
+    CONTAINERS+=" php-worker"
+    # CONTAINERS+=" mailu"
 fi
 
 if [[ $CONTAINERS == *"mariadb"* ]]; then
@@ -178,13 +178,13 @@ _env() {
 
     if [[ $PRODUCTION == "y" ]] && [[ $TARGET != "docker" ]]; then
         if ! grep -q "$LARADOCK_PATH && docker-compose up -d" /etc/crontab; then
-            sudo echo "@reboot   root   cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
+            sudo echo "@reboot root  cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
         else
             sed -i "$LARADOCK_PATH && docker-compose up -d*|$LARADOCK_PATH && docker-compose up -d $CONTAINERS|" /etc/crontab
         fi
 
         if ! grep -q "$SCRIPT_PATH deploy" /etc/crontab; then
-            sudo echo "0 5 * * *   root   $SCRIPT_PATH deploy" >>/etc/crontab
+            sudo echo "0 5 * * * root  $SCRIPT_PATH deploy" >>/etc/crontab
         fi
     fi
 }
