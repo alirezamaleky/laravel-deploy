@@ -60,7 +60,7 @@ if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
 fi
 
 _backup() {
-    if [[ $TARGET != "docker" ]]; then
+    if [[ $TARGET != "docker" ]] && [[ ! -d "$LARAVEL_PATH/storage/app/databases" ]]; then
         mkdir -p $LARAVEL_PATH/storage/app/databases
     fi
     if [[ $TARGET == "deploy" ]] && [[ $INSTALL != "y" ]] && [[ $PRODUCTION == "y" ]]; then
