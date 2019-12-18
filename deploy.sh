@@ -180,7 +180,7 @@ _env() {
         if ! grep -q "$LARADOCK_PATH && docker-compose up -d" /etc/crontab; then
             sudo echo "@reboot   root   cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
         else
-            sed -i "$LARADOCK_PATH && docker-compose up -d*|$LARADOCK_PATH && docker-compose up -d $CONTAINERS|" $LARAVEL_PATH/.env
+            sed -i "$LARADOCK_PATH && docker-compose up -d*|$LARADOCK_PATH && docker-compose up -d $CONTAINERS|" /etc/crontab
         fi
 
         if ! grep -q "$SCRIPT_PATH deploy" /etc/crontab; then
