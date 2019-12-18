@@ -177,7 +177,7 @@ _env() {
     fi
 
     if [[ $PRODUCTION == "y" ]]; then
-        if ! grep -q "$LARADOCK_PATH && docker-compose up -d $CONTAINERS" /etc/crontab; then
+        if ! grep -q "$LARADOCK_PATH && docker-compose up -d" /etc/crontab; then
             sudo echo "@reboot   root   cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
         fi
 
