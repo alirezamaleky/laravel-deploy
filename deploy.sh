@@ -157,7 +157,6 @@ _env() {
             sed -i "s|FTP_USERNAME=.*|FTP_USERNAME=$FTP_USERNAME|" $LARAVEL_PATH/.env
             sed -i "s|FTP_PASSWORD=.*|FTP_PASSWORD=$FTP_PASSWORD|" $LARAVEL_PATH/.env
             sed -i "s|RESPONSE_CACHE_ENABLED=.*|RESPONSE_CACHE_ENABLED=true|" $LARAVEL_PATH/.env
-            sed -i "s|ZARINPAL_MERCHANT_ID=.*|ZARINPAL_MERCHANT_ID=$ZARINPAL_MERCHANT_ID|" $LARAVEL_PATH/.env
         fi
 
         sed -i "s|DB_HOST=.*|DB_HOST=$DB_ENGINE|" $LARAVEL_PATH/.env
@@ -223,17 +222,10 @@ _sql() {
 
 _up() {
     cd $LARADOCK_PATH
-
-    if [[ $TARGET == "deploy" ]]; then
-        docker system prune --volumes --force
-    fi
-
     docker-compose up -d $CONTAINERS
-
     if [[ $TARGET == "deploy" ]]; then
         docker-compose exec workspace "/var/www/deploy.sh" docker
     else
-        printf "\n\n\n\n\n Welcome to laradock workspace! \n\n\n\n\n"
         docker-compose exec workspace bash
     fi
 }
