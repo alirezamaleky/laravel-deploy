@@ -20,7 +20,8 @@ fi
 
 CONTAINERS="nginx mariadb redis phpmyadmin "
 if [[ $PRODUCTION == "y" ]]; then
-    CONTAINERS+="php-worker" #mailu
+    CONTAINERS+="php-worker"
+    # CONTAINERS+="mailu"
 fi
 
 if [[ $CONTAINERS == *"mariadb"* ]]; then
