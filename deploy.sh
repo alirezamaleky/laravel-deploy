@@ -61,7 +61,7 @@ _backup() {
     fi
     if [[ $TARGET == "deploy" ]] && [[ $INSTALL != "y" ]] && [[ $PRODUCTION == "y" ]]; then
         cd $LARADOCK_PATH
-        docker-compose exec --user=laradock workspace mysqldump \
+        docker-compose exec workspace mysqldump \
             --force \
             --skip-lock-tables \
             --host=$(grep DB_HOST $LARAVEL_PATH/.env | cut -d '=' -f2) \
@@ -193,8 +193,8 @@ _sql() {
         cd $LARADOCK_PATH
         docker-compose up -d $DB_ENGINE
 
-        if [[ $(docker-compose exec --user=laradock $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]] ||
-            [[ $(docker-compose exec --user=laradock $DB_ENGINE mysql -u $(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2) -p$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]]; then
+        if [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]] ||
+            [[ $(docker-compose exec $DB_ENGINE mysql -u $(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2) -p$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]]; then
             if [[ $INSTALL == "y" ]]; then
                 docker-compose rm --force --stop -v $DB_ENGINE
                 rm -rf ~/.laradock/data/$DB_ENGINE
@@ -207,14 +207,14 @@ _sql() {
             SQL+="GRANT ALL ON $(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).* TO '$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)'@'localhost';"
             SQL+="FLUSH PRIVILEGES;"
 
-            if [[ $(docker-compose exec --user=laradock $DB_ENGINE mysql -u root -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                docker-compose exec --user=laradock $DB_ENGINE mysql -u root -e "$SQL"
-            elif [[ $(docker-compose exec --user=laradock $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                docker-compose exec --user=laradock $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "$SQL"
-            elif [[ $(docker-compose exec --user=laradock $DB_ENGINE mysql -u root -proot -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                docker-compose exec --user=laradock $DB_ENGINE mysql -u root -proot -e "$SQL"
-            elif [[ $(docker-compose exec --user=laradock $DB_ENGINE mysql -u root -psecret -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                docker-compose exec --user=laradock $DB_ENGINE mysql -u root -psecret -e "$SQL"
+            if [[ $(docker-compose exec $DB_ENGINE mysql -u root -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+                docker-compose exec $DB_ENGINE mysql -u root -e "$SQL"
+            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+                docker-compose exec $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "$SQL"
+            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -proot -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+                docker-compose exec $DB_ENGINE mysql -u root -proot -e "$SQL"
+            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -psecret -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+                docker-compose exec $DB_ENGINE mysql -u root -psecret -e "$SQL"
             fi
         fi
     fi
@@ -224,9 +224,9 @@ _up() {
     cd $LARADOCK_PATH
     docker-compose up -d $CONTAINERS
     if [[ $TARGET == "deploy" ]]; then
-        docker-compose exec --user=laradock workspace "/var/www/deploy.sh" docker
+        sudo docker-compose exec workspace "/var/www/deploy.sh" docker
     else
-        docker-compose exec --user=laradock workspace bash
+        docker-compose exec workspace bash
     fi
 }
 
@@ -301,10 +301,12 @@ _permission() {
 }
 
 if [[ $TARGET == "docker" ]]; then
+    ELAPSED_SEC=$SECONDS
     _yarn
     _composer
     _laravel
     _permission
+    echo "Deployment takes $((SECONDS - ELAPSED_SEC)) second."
 else
     if [[ ! -z $USER ]]; then
         _backup
