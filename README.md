@@ -1,6 +1,6 @@
 # Laravel deploy
 
-A bash script to deploy Laravel projects
+A bash script to deploy Laravel projects.
 
 ## Get start
 
