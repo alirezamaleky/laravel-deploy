@@ -2,6 +2,7 @@
 
 TARGET=$1
 
+ELAPSED_SEC=$SECONDS
 SCRIPT_PATH=$(realpath $0)
 LARAVEL_PATH=$(dirname $SCRIPT_PATH)
 LARADOCK_PATH=$LARAVEL_PATH/laradock
@@ -55,6 +56,29 @@ if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
     printf "\n\n Are you saved this informations?" && read NOTED
 fi
 
+_laradock() {
+    if [[ ! -d "$LARAVEL_PATH/laradock" ]]; then
+        wget -N https://github.com/laradock/laradock/archive/master.zip -P $LARAVEL_PATH &&
+            unzip $LARAVEL_PATH/master.zip -d $LARAVEL_PATH &&
+            mv $LARAVEL_PATH/laradock-master $LARAVEL_PATH/laradock &&
+            rm -f $LARAVEL_PATH/master.zip
+    fi
+}
+
+_crontab() {
+    if [[ $PRODUCTION == "y" ]] && [[ $TARGET != "docker" ]]; then
+        if ! grep -q "$LARADOCK_PATH && docker-compose up -d" /etc/crontab; then
+            sudo echo "@reboot root  cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
+        else
+            sed -i "s|$LARADOCK_PATH && docker-compose up -d*|$LARADOCK_PATH && docker-compose up -d $CONTAINERS|" /etc/crontab
+        fi
+
+        if ! grep -q "$SCRIPT_PATH deploy" /etc/crontab; then
+            sudo echo "0 5 * * * root  $SCRIPT_PATH deploy" >>/etc/crontab
+        fi
+    fi
+}
+
 _backup() {
     if [[ ! -d "$LARAVEL_PATH/storage/app/databases" ]] && [[ $TARGET != "docker" ]]; then
         mkdir -p $LARAVEL_PATH/storage/app/databases
@@ -77,14 +101,7 @@ _backup() {
     fi
 }
 
-_pull() {
-    if [[ $PRODUCTION == "y" ]]; then
-        git checkout -f $LARAVEL_PATH
-        git pull origin master
-    fi
-}
-
-_env() {
+_git() {
     if ! grep -q "deploy.sh" $LARAVEL_PATH/.gitignore; then
         echo "deploy.sh" >>$LARAVEL_PATH/.gitignore
     fi
@@ -92,13 +109,13 @@ _env() {
         echo "laradock" >>$LARAVEL_PATH/.gitignore
     fi
 
-    if [[ ! -d "$LARAVEL_PATH/laradock" ]]; then
-        wget -N https://github.com/laradock/laradock/archive/master.zip -P $LARAVEL_PATH &&
-            unzip $LARAVEL_PATH/master.zip -d $LARAVEL_PATH &&
-            mv $LARAVEL_PATH/laradock-master $LARAVEL_PATH/laradock &&
-            rm -f $LARAVEL_PATH/master.zip
+    if [[ $PRODUCTION == "y" ]]; then
+        git checkout -f $LARAVEL_PATH
+        git pull origin master
     fi
+}
 
+_env() {
     if [[ $INSTALL == "y" ]]; then
         cp $LARADOCK_PATH/env-example $LARADOCK_PATH/.env
         cp $LARADOCK_PATH/php-worker/supervisord.d/laravel-worker.conf.example $LARADOCK_PATH/php-worker/supervisord.d/laravel-worker.conf
@@ -135,13 +152,6 @@ _env() {
         echo "alias pa='php artisan'" >>$LARADOCK_PATH/workspace/aliases.sh
     fi
 
-    if ! grep -q "max_allowed_packet" $LARADOCK_PATH/$DB_ENGINE/my.cnf; then
-        echo "[mysqld]" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
-        echo "max_allowed_packet=16M" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
-    else
-        sed -i "s|max_allowed_packet=.*|max_allowed_packet=16M|" $LARADOCK_PATH/$DB_ENGINE/my.cnf
-    fi
-
     if [[ $INSTALL == "y" ]]; then
         cp $LARAVEL_PATH/.env.example $LARAVEL_PATH/.env
 
@@ -174,21 +184,16 @@ _env() {
         sed -i "s|DB_USERNAME=.*|DB_USERNAME=$DB_USERNAME|" $LARAVEL_PATH/.env
         sed -i "s|DB_PASSWORD=.*|DB_PASSWORD=$DB_PASSWORD|" $LARAVEL_PATH/.env
     fi
-
-    if [[ $PRODUCTION == "y" ]] && [[ $TARGET != "docker" ]]; then
-        if ! grep -q "$LARADOCK_PATH && docker-compose up -d" /etc/crontab; then
-            sudo echo "@reboot root  cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
-        else
-            sed -i "s|$LARADOCK_PATH && docker-compose up -d*|$LARADOCK_PATH && docker-compose up -d $CONTAINERS|" /etc/crontab
-        fi
-
-        if ! grep -q "$SCRIPT_PATH deploy" /etc/crontab; then
-            sudo echo "0 5 * * * root  $SCRIPT_PATH deploy" >>/etc/crontab
-        fi
-    fi
 }
 
 _sql() {
+    if ! grep -q "max_allowed_packet" $LARADOCK_PATH/$DB_ENGINE/my.cnf; then
+        echo "[mysqld]" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
+        echo "max_allowed_packet=16M" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
+    else
+        sed -i "s|max_allowed_packet=.*|max_allowed_packet=16M|" $LARADOCK_PATH/$DB_ENGINE/my.cnf
+    fi
+
     if [[ $TARGET == "deploy" ]] && [[ $INSTALL == "y" ]]; then
         cd $LARADOCK_PATH
         docker-compose up -d $DB_ENGINE
@@ -301,16 +306,18 @@ _permission() {
 }
 
 if [[ $TARGET == "docker" ]]; then
-    ELAPSED_SEC=$SECONDS
     _yarn
     _composer
     _laravel
     _permission
+
     echo "Deployment takes $((SECONDS - ELAPSED_SEC)) second."
 else
     if [[ ! -z $USER ]]; then
+        _laradock
+        _crontab
         _backup
-        _pull
+        _git
         _env
         _sql
         _up
