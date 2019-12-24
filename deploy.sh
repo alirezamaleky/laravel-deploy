@@ -20,10 +20,9 @@ else
 fi
 
 CONTAINERS="nginx mariadb redis phpmyadmin"
-if [[ $PRODUCTION == "y" ]]; then
-    CONTAINERS+=" php-worker"
-    # CONTAINERS+=" mailu"
-fi
+# if [[ $PRODUCTION == "y" ]]; then
+#     CONTAINERS+=" mailu"
+# fi
 
 if [[ $CONTAINERS == *"mariadb"* ]]; then
     DB_ENGINE=mariadb
@@ -67,8 +66,18 @@ _laradock() {
 
 _crontab() {
     if [[ $PRODUCTION == "y" ]] && [[ $TARGET != "docker" ]]; then
+        if ! grep -q "schedule:run" $LARADOCK_PATH/workspace/crontab/laradock || ! grep -q "queue:work" $LARADOCK_PATH/workspace/crontab/laradock; then
+            echo "" >$LARADOCK_PATH/workspace/crontab/laradock
+            echo "* * * * * laradock /usr/bin/php /var/www/artisan schedule:run >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
+            echo "@reboot laradock /usr/bin/php /var/www/artisan queue:work --timeout=60 --sleep=3 >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
+        fi
+
         if ! grep -q "$LARADOCK_PATH && docker-compose up -d" /etc/crontab; then
             sudo echo "@reboot root  cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
+        fi
+
+        if ! grep -q "$SCRIPT_PATH deploy" /etc/crontab; then
+            sudo echo "0 5 * * * root  $SCRIPT_PATH deploy" >>/etc/crontab
         fi
 
         if ! grep -q "$SCRIPT_PATH deploy" /etc/crontab; then
@@ -116,7 +125,6 @@ _git() {
 _env() {
     if [[ $INSTALL == "y" ]]; then
         cp $LARADOCK_PATH/env-example $LARADOCK_PATH/.env
-        cp $LARADOCK_PATH/php-worker/supervisord.d/laravel-worker.conf.example $LARADOCK_PATH/php-worker/supervisord.d/laravel-worker.conf
 
         rm -f $LARADOCK_PATH/nginx/sites/default.conf
         wget -N https://raw.githubusercontent.com/alirezamaleky/nginx-config/master/default.conf -P $LARADOCK_PATH/nginx/sites
