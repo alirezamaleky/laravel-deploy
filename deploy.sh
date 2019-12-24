@@ -62,9 +62,7 @@ _laradock() {
             mv $LARAVEL_PATH/laradock-master $LARAVEL_PATH/laradock &&
             rm -f $LARAVEL_PATH/master.zip
     fi
-}
 
-_crontab() {
     if [[ $PRODUCTION == "y" ]] && [[ $TARGET != "docker" ]]; then
         if ! grep -q "schedule:run" $LARADOCK_PATH/workspace/crontab/laradock || ! grep -q "queue:work" $LARADOCK_PATH/workspace/crontab/laradock; then
             echo "" >$LARADOCK_PATH/workspace/crontab/laradock
@@ -74,7 +72,13 @@ _crontab() {
             cd $LARADOCK_PATH
             docker-compose build workspace
         fi
+    elif [[ $PRODUCTION != "y" ]]; then
+        echo "" >$LARADOCK_PATH/workspace/crontab/laradock
+    fi
+}
 
+_crontab() {
+    if [[ $PRODUCTION == "y" ]] && [[ $TARGET != "docker" ]]; then
         if ! grep -q "$LARADOCK_PATH && docker-compose up -d" /etc/crontab; then
             sudo echo "@reboot root  cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
         fi
@@ -82,8 +86,6 @@ _crontab() {
         if ! grep -q "$SCRIPT_PATH deploy" /etc/crontab; then
             sudo echo "0 5 * * * root  $SCRIPT_PATH deploy" >>/etc/crontab
         fi
-    elif [[ $PRODUCTION != "y" ]]; then
-        echo "" >$LARADOCK_PATH/workspace/crontab/laradock
     fi
 }
 
