@@ -69,8 +69,6 @@ _crontab() {
     if [[ $PRODUCTION == "y" ]] && [[ $TARGET != "docker" ]]; then
         if ! grep -q "$LARADOCK_PATH && docker-compose up -d" /etc/crontab; then
             sudo echo "@reboot root  cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
-        else
-            sed -i "s|$LARADOCK_PATH && docker-compose up -d*|$LARADOCK_PATH && docker-compose up -d $CONTAINERS|" /etc/crontab
         fi
 
         if ! grep -q "$SCRIPT_PATH deploy" /etc/crontab; then
@@ -229,7 +227,7 @@ _up() {
     cd $LARADOCK_PATH
     docker-compose up -d $CONTAINERS
     if [[ $TARGET == "deploy" ]]; then
-        sudo docker-compose exec workspace "/var/www/deploy.sh" docker
+        sudo docker-compose exec workspace "bash" /var/www/deploy.sh docker
     else
         docker-compose exec workspace bash
     fi
