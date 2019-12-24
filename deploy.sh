@@ -70,6 +70,9 @@ _crontab() {
             echo "" >$LARADOCK_PATH/workspace/crontab/laradock
             echo "* * * * * laradock /usr/bin/php /var/www/artisan schedule:run >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
             echo "@reboot laradock /usr/bin/php /var/www/artisan queue:work --timeout=60 --sleep=3 >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
+
+            cd $LARADOCK_PATH
+            docker-compose build workspace
         fi
 
         if ! grep -q "$LARADOCK_PATH && docker-compose up -d" /etc/crontab; then
