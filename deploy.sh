@@ -79,10 +79,6 @@ _crontab() {
         if ! grep -q "$SCRIPT_PATH deploy" /etc/crontab; then
             sudo echo "0 5 * * * root  $SCRIPT_PATH deploy" >>/etc/crontab
         fi
-
-        if ! grep -q "$SCRIPT_PATH deploy" /etc/crontab; then
-            sudo echo "0 5 * * * root  $SCRIPT_PATH deploy" >>/etc/crontab
-        fi
     fi
 }
 
