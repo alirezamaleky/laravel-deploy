@@ -109,6 +109,55 @@ _backup() {
     fi
 }
 
+_mysql() {
+    if ! grep -q "max_allowed_packet=16M" $LARADOCK_PATH/$DB_ENGINE/my.cnf; then
+        echo "" >$LARADOCK_PATH/$DB_ENGINE/my.cnf
+        echo "[mysqld]" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
+        echo "max_allowed_packet=16M" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
+    fi
+
+    if [[ $TARGET != "docker" ]] && [[ $INSTALL == "y" ]]; then
+        cd $LARADOCK_PATH
+        docker-compose up -d $DB_ENGINE
+
+        if [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]] ||
+            [[ $(docker-compose exec $DB_ENGINE mysql -u $(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2) -p$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]]; then
+            if [[ $INSTALL == "y" ]]; then
+                docker-compose rm --force --stop -v $DB_ENGINE
+                rm -rf ~/.laradock/data/$DB_ENGINE
+                docker-compose up -d --force-recreate $DB_ENGINE
+            fi
+
+            SQL="ALTER USER 'root'@'localhost' IDENTIFIED BY '$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)';"
+            SQL+="CREATE DATABASE IF NOT EXISTS $(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2) COLLATE 'utf8_general_ci';"
+            SQL+="CREATE USER '$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)'@'localhost' IDENTIFIED BY '$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)';"
+            SQL+="GRANT ALL ON $(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).* TO '$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)'@'localhost';"
+            SQL+="FLUSH PRIVILEGES;"
+
+            if [[ $(docker-compose exec $DB_ENGINE mysql -u root -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+                docker-compose exec $DB_ENGINE mysql -u root -e "$SQL"
+            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+                docker-compose exec $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "$SQL"
+            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -proot -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+                docker-compose exec $DB_ENGINE mysql -u root -proot -e "$SQL"
+            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -psecret -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+                docker-compose exec $DB_ENGINE mysql -u root -psecret -e "$SQL"
+            fi
+        fi
+    fi
+}
+
+_nginx() {
+    if [[ $TARGET != "docker" ]] && [[ $INSTALL == "y" ]]; then
+        rm -f $LARADOCK_PATH/nginx/sites/default.conf
+        wget -N https://raw.githubusercontent.com/alirezamaleky/nginx-config/master/default.conf -P $LARADOCK_PATH/nginx/sites
+        sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/default.conf
+
+        cd $LARADOCK_PATH
+        docker-compose build nginx
+    fi
+}
+
 _git() {
     if ! grep -q "deploy.sh" $LARAVEL_PATH/.gitignore; then
         echo "deploy.sh" >>$LARAVEL_PATH/.gitignore
@@ -126,10 +175,6 @@ _git() {
 _env() {
     if [[ $INSTALL == "y" ]]; then
         cp $LARADOCK_PATH/env-example $LARADOCK_PATH/.env
-
-        rm -f $LARADOCK_PATH/nginx/sites/default.conf
-        wget -N https://raw.githubusercontent.com/alirezamaleky/nginx-config/master/default.conf -P $LARADOCK_PATH/nginx/sites
-        sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/default.conf
 
         sed -i "s|PHP_FPM_INSTALL_SOAP=.*|PHP_FPM_INSTALL_SOAP=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_MYSQL_CLIENT=.*|WORKSPACE_INSTALL_MYSQL_CLIENT=true|" $LARADOCK_PATH/.env
@@ -190,45 +235,6 @@ _env() {
         sed -i "s|DB_DATABASE=.*|DB_DATABASE=$DB_DATABASE|" $LARAVEL_PATH/.env
         sed -i "s|DB_USERNAME=.*|DB_USERNAME=$DB_USERNAME|" $LARAVEL_PATH/.env
         sed -i "s|DB_PASSWORD=.*|DB_PASSWORD=$DB_PASSWORD|" $LARAVEL_PATH/.env
-    fi
-}
-
-_sql() {
-    if ! grep -q "max_allowed_packet" $LARADOCK_PATH/$DB_ENGINE/my.cnf; then
-        echo "[mysqld]" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
-        echo "max_allowed_packet=16M" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
-    else
-        sed -i "s|max_allowed_packet=.*|max_allowed_packet=16M|" $LARADOCK_PATH/$DB_ENGINE/my.cnf
-    fi
-
-    if [[ $TARGET == "deploy" ]] && [[ $INSTALL == "y" ]]; then
-        cd $LARADOCK_PATH
-        docker-compose up -d $DB_ENGINE
-
-        if [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]] ||
-            [[ $(docker-compose exec $DB_ENGINE mysql -u $(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2) -p$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]]; then
-            if [[ $INSTALL == "y" ]]; then
-                docker-compose rm --force --stop -v $DB_ENGINE
-                rm -rf ~/.laradock/data/$DB_ENGINE
-                docker-compose up -d --force-recreate $DB_ENGINE
-            fi
-
-            SQL="ALTER USER 'root'@'localhost' IDENTIFIED BY '$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)';"
-            SQL+="CREATE DATABASE IF NOT EXISTS $(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2) COLLATE 'utf8_general_ci';"
-            SQL+="CREATE USER '$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)'@'localhost' IDENTIFIED BY '$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)';"
-            SQL+="GRANT ALL ON $(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).* TO '$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)'@'localhost';"
-            SQL+="FLUSH PRIVILEGES;"
-
-            if [[ $(docker-compose exec $DB_ENGINE mysql -u root -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                docker-compose exec $DB_ENGINE mysql -u root -e "$SQL"
-            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                docker-compose exec $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "$SQL"
-            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -proot -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                docker-compose exec $DB_ENGINE mysql -u root -proot -e "$SQL"
-            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -psecret -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                docker-compose exec $DB_ENGINE mysql -u root -psecret -e "$SQL"
-            fi
-        fi
     fi
 }
 
@@ -324,9 +330,10 @@ else
         _laradock
         _crontab
         _backup
+        _mysql
+        _nginx
         _git
         _env
-        _sql
         _up
     fi
 fi
