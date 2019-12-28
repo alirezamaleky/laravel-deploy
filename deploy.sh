@@ -72,11 +72,12 @@ _laradock() {
             echo "" >$LARADOCK_PATH/workspace/crontab/laradock
             echo "* * * * * laradock /usr/bin/php /var/www/artisan schedule:run >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
             echo "@reboot laradock /usr/bin/php /var/www/artisan queue:work --timeout=60 --sleep=3 >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
-
-            cd $LARADOCK_PATH
-            docker-compose build workspace
+            if [[ $INSTALL != "y" ]]; then
+                cd $LARADOCK_PATH
+                docker-compose build workspace
+            fi
         fi
-    elif [[ $PRODUCTION != "y" ]]; then
+    elif [[ $PRODUCTION != "y" ]] && [[ $INSTALL = "y" ]]; then
         echo "" >$LARADOCK_PATH/workspace/crontab/laradock
     fi
 }
