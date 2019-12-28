@@ -19,7 +19,7 @@ else
     fi
 fi
 
-CONTAINERS="nginx mariadb redis phpmyadmin"
+CONTAINERS="nginx mariadb phpmyadmin redis"
 # if [[ $PRODUCTION == "y" ]]; then
 #     CONTAINERS+=" mailu"
 # fi
@@ -28,6 +28,10 @@ if [[ $CONTAINERS == *"mariadb"* ]]; then
     DB_ENGINE=mariadb
 else
     DB_ENGINE=mysql
+fi
+
+if [[ ! -f $LARADOCK_PATH/.env ]]; then
+    cp $LARADOCK_PATH/env-example $LARADOCK_PATH/.env
 fi
 
 if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
@@ -176,8 +180,6 @@ _git() {
 
 _env() {
     if [[ $INSTALL == "y" ]]; then
-        cp $LARADOCK_PATH/env-example $LARADOCK_PATH/.env
-
         sed -i "s|PHP_FPM_INSTALL_SOAP=.*|PHP_FPM_INSTALL_SOAP=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_MYSQL_CLIENT=.*|WORKSPACE_INSTALL_MYSQL_CLIENT=true|" $LARADOCK_PATH/.env
 
