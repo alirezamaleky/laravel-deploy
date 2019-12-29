@@ -137,8 +137,6 @@ _mysql() {
                 docker-compose rm --force --stop -v $DB_ENGINE
                 rm -rf ~/.laradock/data/$DB_ENGINE
                 docker-compose up -d --force-recreate $DB_ENGINE
-            else
-                docker-compose build $DB_ENGINE
             fi
 
             SQL="ALTER USER 'root'@'localhost' IDENTIFIED BY '$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)';"
