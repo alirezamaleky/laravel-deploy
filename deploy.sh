@@ -78,7 +78,8 @@ _laradock() {
             echo "@reboot laradock /usr/bin/php /var/www/artisan queue:work --timeout=60 --sleep=3 >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
             if [[ $INSTALL != "y" ]]; then
                 cd $LARADOCK_PATH
-                docker-compose build workspace
+                docker-compose build --no-cache workspace
+                docker-compose up -d workspace
             fi
         fi
     elif [[ $PRODUCTION != "y" ]] && [[ $INSTALL == "y" ]]; then
@@ -177,11 +178,13 @@ _nginx() {
         sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/default.conf
 
         cd $LARADOCK_PATH
-        docker-compose build nginx
+        docker-compose build --no-cache nginx
+        docker-compose up -d nginx
     fi
 }
 
 _redis() {
+    # OYs4vvWBXaWsfGe6BgEE
     if [[ ! -z $REDIS_PASSWORD ]]; then
         REDIS_PASSWORD=$(grep REDIS_STORAGE_SERVER_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)
     else
@@ -210,7 +213,7 @@ _redis() {
         REDIS_DOCKERFILE+='\n\nCMD ["redis-server", "/usr/local/etc/redis/redis.conf"]'
         echo -e $REDIS_DOCKERFILE >$LARADOCK_PATH/redis/Dockerfile
 
-        docker-compose build redis
+        docker-compose build --no-cache redis
         docker-compose up -d redis
     fi
 }
@@ -267,7 +270,7 @@ _env() {
         fi
 
         sed -i "s|DB_HOST=.*|DB_HOST=$DB_ENGINE|" $LARAVEL_PATH/.env
-        sed -i "s|REDIS_HOST=.*|REDIS_HOST=redis|" $LARAVEL_PATH/.env
+        # sed -i "s|REDIS_HOST=.*|REDIS_HOST=redis|" $LARAVEL_PATH/.env
 
         sed -i "s|LOG_CHANNEL=.*|LOG_CHANNEL=daily|" $LARAVEL_PATH/.env
         sed -i "s|BROADCAST_DRIVER=.*|BROADCAST_DRIVER=redis|" $LARAVEL_PATH/.env
