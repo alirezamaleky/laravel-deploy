@@ -184,7 +184,6 @@ _nginx() {
 }
 
 _redis() {
-    # OYs4vvWBXaWsfGe6BgEE
     if [[ ! -z $REDIS_PASSWORD ]]; then
         REDIS_PASSWORD=$(grep REDIS_STORAGE_SERVER_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)
     else
@@ -270,7 +269,7 @@ _env() {
         fi
 
         sed -i "s|DB_HOST=.*|DB_HOST=$DB_ENGINE|" $LARAVEL_PATH/.env
-        # sed -i "s|REDIS_HOST=.*|REDIS_HOST=redis|" $LARAVEL_PATH/.env
+        sed -i "s|REDIS_HOST=.*|REDIS_HOST=redis|" $LARAVEL_PATH/.env
 
         sed -i "s|LOG_CHANNEL=.*|LOG_CHANNEL=daily|" $LARAVEL_PATH/.env
         sed -i "s|BROADCAST_DRIVER=.*|BROADCAST_DRIVER=redis|" $LARAVEL_PATH/.env
