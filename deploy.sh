@@ -8,7 +8,7 @@ LARAVEL_PATH=$(dirname $SCRIPT_PATH)
 LARADOCK_PATH=$LARAVEL_PATH/laradock
 
 if [[ ! -d "$LARAVEL_PATH/laradock" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "$LARAVEL_PATH/node_modules" ]]; then
-    INSTALL="y"
+    echo -n "Is this first install? [y/N] " && read INSTALL
 fi
 
 if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
