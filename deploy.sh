@@ -378,6 +378,7 @@ if [[ $TARGET == "docker" ]]; then
     echo "Deployment takes $((SECONDS - ELAPSED_SEC)) second."
 else
     if [[ ! -z $USER ]]; then
+        _env
         _laradock
         _crontab
         _backup
@@ -385,7 +386,6 @@ else
         _nginx
         _redis
         _git
-        _env
         _up
     fi
 fi
