@@ -53,6 +53,7 @@ if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
     DB_ROOT_PASSWORD=$(openssl rand -base64 15)
     MAIL_HOST="mail.$DOMAIN"
     MAIL_PASSWORD=$(openssl rand -base64 15)
+    REDIS_PASSWORD=$(openssl rand -base64 15)
 
     printf "\nDB_DATABASE=$DB_DATABASE"
     printf "\nDB_USERNAME=$DB_USERNAME"
@@ -169,6 +170,26 @@ _nginx() {
     fi
 }
 
+_redis() {
+    if [[ ! -z $USER ]]; then
+        REDIS_PASSWORD=$(grep REDIS_STORAGE_SERVER_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)
+    fi
+    if ! grep -q "requirepass __REDIS_PASSWORD__" $LARADOCK_PATH/redis/redis.conf; then
+        echo "requirepass __REDIS_PASSWORD__" >>$LARADOCK_PATH/redis/redis.conf
+    fi
+    if ! grep -q "REDIS_PASSWORD" $LARADOCK_PATH/redis/Dockerfile; then
+        REDIS_DOCKERFILE='FROM redis:latest'
+        REDIS_DOCKERFILE+='\n\nARG REDIS_PASSWORD='$REDIS_PASSWORD
+        REDIS_DOCKERFILE+='\n\nRUN mkdir -p /usr/local/etc/redis'
+        REDIS_DOCKERFILE+='\nCOPY redis.conf /usr/local/etc/redis/redis.conf'
+        REDIS_DOCKERFILE+='\nRUN sed -i "s/__REDIS_PASSWORD__/'$REDIS_PASSWORD'/g" /usr/local/etc/redis/redis.conf'
+        REDIS_DOCKERFILE+='\n\nVOLUME /data'
+        REDIS_DOCKERFILE+='\n\nEXPOSE 6379'
+        REDIS_DOCKERFILE+='\n\nCMD ["redis-server", "/usr/local/etc/redis/redis.conf"]'
+        echo -e $REDIS_DOCKERFILE >$LARADOCK_PATH/redis/Dockerfile
+    fi
+}
+
 _git() {
     if ! grep -q "deploy.sh" $LARAVEL_PATH/.gitignore; then
         echo "deploy.sh" >>$LARAVEL_PATH/.gitignore
@@ -208,6 +229,9 @@ _env() {
         sed -i "s|MAILU_SECRET_KEY=.*|MAILU_SECRET_KEY=$(openssl rand -base64 16)|" $LARADOCK_PATH/.env
         sed -i "s|MAILU_INIT_ADMIN_USERNAME=.*|MAILU_INIT_ADMIN_USERNAME=$MAIL_USERNAME|" $LARADOCK_PATH/.env
         sed -i "s|MAILU_INIT_ADMIN_PASSWORD=.*|MAILU_INIT_ADMIN_PASSWORD=$MAIL_PASSWORD|" $LARADOCK_PATH/.env
+        sed -i "s|REDIS_STORAGE_SERVER_PASSWORD=.*|REDIS_STORAGE_SERVER_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
+        sed -i "s|REDIS_RESULT_STORAGE_SERVER_PASSWORD=.*|REDIS_RESULT_STORAGE_SERVER_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
+        sed -i "s|REDIS_QUEUE_SERVER_PASSWORD=.*|REDIS_QUEUE_SERVER_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
 
         echo "alias nr='npm run'" >>$LARADOCK_PATH/workspace/aliases.sh
         echo "alias pa='php artisan'" >>$LARADOCK_PATH/workspace/aliases.sh
@@ -242,6 +266,7 @@ _env() {
         sed -i "s|DB_DATABASE=.*|DB_DATABASE=$DB_DATABASE|" $LARAVEL_PATH/.env
         sed -i "s|DB_USERNAME=.*|DB_USERNAME=$DB_USERNAME|" $LARAVEL_PATH/.env
         sed -i "s|DB_PASSWORD=.*|DB_PASSWORD=$DB_PASSWORD|" $LARAVEL_PATH/.env
+        sed -i "s|REDIS_PASSWORD=.*|REDIS_PASSWORD=$REDIS_PASSWORD|" $LARAVEL_PATH/.env
     fi
 }
 
@@ -342,6 +367,7 @@ else
         _backup
         _mysql
         _nginx
+        _redis
         _git
         _env
         _up
