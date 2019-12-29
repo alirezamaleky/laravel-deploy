@@ -30,13 +30,6 @@ else
     DB_ENGINE=mysql
 fi
 
-if [[ ! -f $LARADOCK_PATH/.env ]]; then
-    cp $LARADOCK_PATH/env-example $LARADOCK_PATH/.env
-fi
-if [[ ! -f $LARAVEL_PATH/.env ]]; then
-    cp $LARAVEL_PATH/.env.example $LARAVEL_PATH/.env
-fi
-
 if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
     echo -n "DB_DATABASE: " && read DATABASE
     echo -n "DOMAIN: " && read DOMAIN
@@ -69,6 +62,7 @@ _laradock() {
             unzip $LARAVEL_PATH/master.zip -d $LARAVEL_PATH &&
             mv $LARAVEL_PATH/laradock-master $LARAVEL_PATH/laradock &&
             rm -f $LARAVEL_PATH/master.zip
+        cp $LARADOCK_PATH/env-example $LARADOCK_PATH/.env
     fi
 
     if [[ $PRODUCTION == "y" ]] && [[ $TARGET != "docker" ]]; then
@@ -254,6 +248,8 @@ _env() {
     fi
 
     if [[ $INSTALL == "y" ]]; then
+        cp $LARAVEL_PATH/.env.example $LARAVEL_PATH/.env
+
         if [[ $PRODUCTION == "y" ]]; then
             sed -i "s|APP_ENV=.*|APP_ENV=production|" $LARAVEL_PATH/.env
             sed -i "s|APP_DEBUG=.*|APP_DEBUG=false|" $LARAVEL_PATH/.env
@@ -378,8 +374,8 @@ if [[ $TARGET == "docker" ]]; then
     echo "Deployment takes $((SECONDS - ELAPSED_SEC)) second."
 else
     if [[ ! -z $USER ]]; then
-        _env
         _laradock
+        _env
         _crontab
         _backup
         _mysql
