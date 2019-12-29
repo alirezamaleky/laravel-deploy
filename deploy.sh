@@ -178,34 +178,31 @@ _nginx() {
 }
 
 _redis() {
-    if [[ ! -z $REDIS_PASSWORD ]]; then
-        REDIS_PASSWORD=$(grep REDIS_STORAGE_SERVER_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)
-    else
+    if [[ $INSTALL == "y" ]]; then
         sed -i "s|REDIS_STORAGE_SERVER_PASSWORD=.*|REDIS_STORAGE_SERVER_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
         sed -i "s|REDIS_RESULT_STORAGE_SERVER_PASSWORD=.*|REDIS_RESULT_STORAGE_SERVER_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
         sed -i "s|REDIS_QUEUE_SERVER_PASSWORD=.*|REDIS_QUEUE_SERVER_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
-    fi
-    sed -i "s|REDIS_PORT=.*|REDIS_PORT=127.0.0.1:6379|" $LARADOCK_PATH/.env
-    sed -i "s|build: ./redis|build:\n        context: ./redis\n        args:\n            REDIS_PASSWORD: \${REDIS_PASSWORD}|" $LARADOCK_PATH/docker-compose.yml
-    if ! grep -q "REDIS_PASSWORD" $LARADOCK_PATH/.env; then
-        echo "REDIS_PASSWORD=$REDIS_PASSWORD" >>$LARADOCK_PATH/.env
-    else
-        sed -i "s|REDIS_PASSWORD=.*|REDIS_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
-    fi
-    if ! grep -q "requirepass __REDIS_PASSWORD__" $LARADOCK_PATH/redis/redis.conf; then
-        echo "requirepass __REDIS_PASSWORD__" >>$LARADOCK_PATH/redis/redis.conf
-    fi
-    if ! grep -q "REDIS_PASSWORD" $LARADOCK_PATH/redis/Dockerfile; then
-        REDIS_DOCKERFILE='FROM redis:latest'
-        REDIS_DOCKERFILE+='\n\nARG REDIS_PASSWORD=secret'
-        REDIS_DOCKERFILE+='\n\nRUN mkdir -p /usr/local/etc/redis'
-        REDIS_DOCKERFILE+='\nCOPY redis.conf /usr/local/etc/redis/redis.conf'
-        REDIS_DOCKERFILE+='\nRUN sed -i "s|__REDIS_PASSWORD__|'$REDIS_PASSWORD'|g" /usr/local/etc/redis/redis.conf'
-        REDIS_DOCKERFILE+='\n\nVOLUME /data'
-        REDIS_DOCKERFILE+='\n\nEXPOSE 6379'
-        REDIS_DOCKERFILE+='\n\nCMD ["redis-server", "/usr/local/etc/redis/redis.conf"]'
-        echo -e $REDIS_DOCKERFILE >$LARADOCK_PATH/redis/Dockerfile
-
+        sed -i "s|REDIS_PORT=.*|REDIS_PORT=127.0.0.1:6379|" $LARADOCK_PATH/.env
+        sed -i "s|build: ./redis|build:\n        context: ./redis\n        args:\n            REDIS_PASSWORD: \${REDIS_PASSWORD}|" $LARADOCK_PATH/docker-compose.yml
+        if ! grep -q "REDIS_PASSWORD" $LARADOCK_PATH/.env; then
+            echo "REDIS_PASSWORD=$REDIS_PASSWORD" >>$LARADOCK_PATH/.env
+        else
+            sed -i "s|REDIS_PASSWORD=.*|REDIS_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
+        fi
+        if ! grep -q "requirepass __REDIS_PASSWORD__" $LARADOCK_PATH/redis/redis.conf; then
+            echo "requirepass __REDIS_PASSWORD__" >>$LARADOCK_PATH/redis/redis.conf
+        fi
+        if ! grep -q "REDIS_PASSWORD" $LARADOCK_PATH/redis/Dockerfile; then
+            REDIS_DOCKERFILE='FROM redis:latest'
+            REDIS_DOCKERFILE+='\n\nARG REDIS_PASSWORD=secret'
+            REDIS_DOCKERFILE+='\n\nRUN mkdir -p /usr/local/etc/redis'
+            REDIS_DOCKERFILE+='\nCOPY redis.conf /usr/local/etc/redis/redis.conf'
+            REDIS_DOCKERFILE+='\nRUN sed -i "s|__REDIS_PASSWORD__|'$REDIS_PASSWORD'|g" /usr/local/etc/redis/redis.conf'
+            REDIS_DOCKERFILE+='\n\nVOLUME /data'
+            REDIS_DOCKERFILE+='\n\nEXPOSE 6379'
+            REDIS_DOCKERFILE+='\n\nCMD ["redis-server", "/usr/local/etc/redis/redis.conf"]'
+            echo -e $REDIS_DOCKERFILE >$LARADOCK_PATH/redis/Dockerfile
+        fi
         docker-compose build --no-cache redis
         docker-compose up -d redis
     fi
