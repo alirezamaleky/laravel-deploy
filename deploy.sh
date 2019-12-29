@@ -133,7 +133,7 @@ _mysql() {
         echo "max_allowed_packet=16M" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
     fi
 
-    if [[ $TARGET != "docker" ]] && [[ $INSTALL != "y" ]]; then
+    if [[ $TARGET != "docker" ]] && [[ $INSTALL == "y" ]]; then
         cd $LARADOCK_PATH
         docker-compose up -d $DB_ENGINE
 
@@ -286,7 +286,7 @@ _up() {
     cd $LARADOCK_PATH
     docker-compose up -d $CONTAINERS
     if [[ $TARGET == "deploy" ]]; then
-        sudo docker-compose exec workspace "bash" /var/www/deploy.sh docker
+        sudo docker-compose exec workspace "/var/www/deploy.sh" docker
     else
         docker-compose exec workspace bash
     fi
