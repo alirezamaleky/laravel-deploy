@@ -33,6 +33,9 @@ fi
 if [[ ! -f $LARADOCK_PATH/.env ]]; then
     cp $LARADOCK_PATH/env-example $LARADOCK_PATH/.env
 fi
+if [[ ! -f $LARAVEL_PATH/.env ]]; then
+    cp $LARAVEL_PATH/.env.example $LARAVEL_PATH/.env
+fi
 
 if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
     echo -n "DB_DATABASE: " && read DATABASE
@@ -77,7 +80,7 @@ _laradock() {
                 docker-compose build workspace
             fi
         fi
-    elif [[ $PRODUCTION != "y" ]] && [[ $INSTALL = "y" ]]; then
+    elif [[ $PRODUCTION != "y" ]] && [[ $INSTALL == "y" ]]; then
         echo "" >$LARADOCK_PATH/workspace/crontab/laradock
     fi
 }
@@ -123,16 +126,19 @@ _mysql() {
         echo "max_allowed_packet=16M" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
     fi
 
-    if [[ $TARGET != "docker" ]] && [[ $INSTALL == "y" ]]; then
+    if [[ $TARGET != "docker" ]] && [[ $INSTALL != "y" ]]; then
         cd $LARADOCK_PATH
         docker-compose up -d $DB_ENGINE
 
         if [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]] ||
             [[ $(docker-compose exec $DB_ENGINE mysql -u $(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2) -p$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]]; then
-            if [[ $INSTALL == "y" ]]; then
+            echo -n "Do you want re-install database?" && read DATABASE_REINSTALL
+            if [[ $DATABASE_REINSTALL == "y" ]]; then
                 docker-compose rm --force --stop -v $DB_ENGINE
                 rm -rf ~/.laradock/data/$DB_ENGINE
                 docker-compose up -d --force-recreate $DB_ENGINE
+            else
+                docker-compose build $DB_ENGINE
             fi
 
             SQL="ALTER USER 'root'@'localhost' IDENTIFIED BY '$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)';"
@@ -210,8 +216,6 @@ _env() {
     fi
 
     if [[ $INSTALL == "y" ]]; then
-        cp $LARAVEL_PATH/.env.example $LARAVEL_PATH/.env
-
         if [[ $PRODUCTION == "y" ]]; then
             sed -i "s|APP_ENV=.*|APP_ENV=production|" $LARAVEL_PATH/.env
             sed -i "s|APP_DEBUG=.*|APP_DEBUG=false|" $LARAVEL_PATH/.env
