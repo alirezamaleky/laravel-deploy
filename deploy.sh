@@ -223,25 +223,23 @@ _mysql() {
             IFS=';' read -r -a SQL_ARRAY <<<"$SQL"
 
             if [[ $(docker-compose exec $DB_ENGINE mysql -u root -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                for QUERY in "${SQL_ARRAY[@]}"; do
-                    echo docker-compose exec $DB_ENGINE mysql -u root -e "$QUERY;"
-                done
+                DB_COMPOSE="docker-compose exec $DB_ENGINE mysql -u root -e"
             elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                for QUERY in "${SQL_ARRAY[@]}"; do
-                    echo docker-compose exec $DB_ENGINE mysql -u root -p$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "$QUERY;"
-                done
+                DB_COMPOSE="docker-compose exec $DB_ENGINE mysql -u root -p$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e"
             elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -proot -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                for QUERY in "${SQL_ARRAY[@]}"; do
-                    echo docker-compose exec $DB_ENGINE mysql -u root -proot -e "$QUERY;"
-                done
+                DB_COMPOSE="docker-compose exec $DB_ENGINE mysql -u root -proot -e"
             elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -psecret -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+                DB_COMPOSE="docker-compose exec $DB_ENGINE mysql -u root -psecret -e"
+            fi
+
+            if [[ ! -z $DB_COMPOSE ]]; then
                 for QUERY in "${SQL_ARRAY[@]}"; do
-                    echo docker-compose exec $DB_ENGINE mysql -u root -psecret -e "$QUERY;"
+                    $DB_COMPOSE "$QUERY;"
                 done
             else
                 echo -e "Please config db manualy:\n"
                 for QUERY in "${SQL_ARRAY[@]}"; do
-                    echo docker-compose exec $DB_ENGINE mysql -u root -psecret -e "$QUERY;"
+                    echo "$QUERY;"
                 done
                 read OK
             fi
