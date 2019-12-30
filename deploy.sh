@@ -60,6 +60,12 @@ if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
     printf "\nREDIS_PASSWORD=$REDIS_PASSWORD"
     printf "\nPMA_PORT=$PMA_PORT"
     printf "\n\n Are you saved this informations?" && read NOTED
+else
+    DB_DATABASE=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2)
+    DB_USERNAME=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)
+    DB_PASSWORD=$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)
+    DB_ROOT_PASSWORD=$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)
+    REDIS_PASSWORD=$(grep REDIS_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)
 fi
 
 _laradock() {
@@ -181,15 +187,15 @@ _backup() {
         docker-compose exec workspace mysqldump \
             --force \
             --skip-lock-tables \
-            --host=$(grep DB_HOST $LARAVEL_PATH/.env | cut -d '=' -f2) \
+            --host=$DB_ENGINE \
             --port=$(grep DB_PORT $LARAVEL_PATH/.env | cut -d '=' -f2) \
-            -p$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2) \
-            --user=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2) \
-            --databases $(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2) \
-            --ignore-table=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).migrations \
-            --ignore-table=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).telescope_entries \
-            --ignore-table=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).telescope_entries_tags \
-            --ignore-table=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).telescope_monitoring \
+            -p$DB_PASSWORD \
+            --user=$DB_USERNAME \
+            --databases $DB_DATABASE \
+            --ignore-table=$DB_DATABASE.migrations \
+            --ignore-table=$DB_DATABASE.telescope_entries \
+            --ignore-table=$DB_DATABASE.telescope_entries_tags \
+            --ignore-table=$DB_DATABASE.telescope_monitoring \
             --result-file=./storage/app/databases/$(date '+%y-%m-%d_%H:%M').sql
     fi
 }
@@ -205,27 +211,27 @@ _mysql() {
         cd $LARADOCK_PATH
         docker-compose up -d $DB_ENGINE
 
-        if [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]] ||
-            [[ $(docker-compose exec $DB_ENGINE mysql -u $(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2) -p$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]]; then
+        if [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;") == *"ERROR"* ]] ||
+            [[ $(docker-compose exec $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;") == *"ERROR"* ]]; then
             if [[ $INSTALL == "y" ]]; then
                 rm -rf ~/.laradock/data/$DB_ENGINE
                 docker-compose build --no-cache $DB_ENGINE
                 docker-compose up -d $DB_ENGINE
             fi
 
-            SQL="ALTER USER 'root'@'localhost' IDENTIFIED BY '$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)';"
-            SQL+="CREATE DATABASE IF NOT EXISTS $(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2) COLLATE 'utf8_general_ci';"
-            SQL+="CREATE USER '$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)'@'localhost' IDENTIFIED BY '$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)';"
-            SQL+="ALTER USER '$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)'@'localhost' IDENTIFIED BY '$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)';"
-            SQL+="GRANT ALL ON $(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).* TO '$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)'@'localhost';"
+            SQL="ALTER USER 'root'@'localhost' IDENTIFIED BY '$DB_ROOT_PASSWORD';"
+            SQL+="CREATE DATABASE IF NOT EXISTS $DB_DATABASE COLLATE 'utf8_general_ci';"
+            SQL+="CREATE USER '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';"
+            SQL+="ALTER USER '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';"
+            SQL+="GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'localhost';"
             SQL+="FLUSH PRIVILEGES;"
             SQL+=${SQL//localhost/%}
             IFS=';' read -r -a SQL_ARRAY <<<"$SQL"
 
             if [[ $(docker-compose exec $DB_ENGINE mysql -u root -e "SHOW DATABASES;") != *"ERROR"* ]]; then
                 DB_COMPOSE="docker-compose exec $DB_ENGINE mysql -u root -e"
-            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                DB_COMPOSE="docker-compose exec $DB_ENGINE mysql -u root -p$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e"
+            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+                DB_COMPOSE="docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e"
             elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -proot -e "SHOW DATABASES;") != *"ERROR"* ]]; then
                 DB_COMPOSE="docker-compose exec $DB_ENGINE mysql -u root -proot -e"
             elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -psecret -e "SHOW DATABASES;") != *"ERROR"* ]]; then
