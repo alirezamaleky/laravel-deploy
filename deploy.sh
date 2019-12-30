@@ -9,6 +9,9 @@ LARADOCK_PATH=$LARAVEL_PATH/laradock
 
 if [[ ! -d "$LARAVEL_PATH/laradock" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "$LARAVEL_PATH/node_modules" ]]; then
     echo -n "Is this first install? [y/N] " && read INSTALL
+    if [[ ! -z $INSTALL ]]; then
+        INSTALL="y"
+    fi
 fi
 
 if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
@@ -52,6 +55,7 @@ if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
     printf "\nDB_USERNAME=$DB_USERNAME"
     printf "\nDB_PASSWORD=$DB_PASSWORD"
     printf "\nDB_ROOT_PASSWORD=$DB_ROOT_PASSWORD"
+    printf "\nREDIS_PASSWORD=$REDIS_PASSWORD"
     printf "\nPMA_PORT=$PMA_PORT"
     printf "\n\n Are you saved this informations?" && read NOTED
 fi
@@ -81,42 +85,11 @@ _laradock() {
     fi
 }
 
-_crontab() {
-    if [[ $PRODUCTION == "y" ]] && [[ $TARGET != "docker" ]]; then
-        if ! grep -q "$LARADOCK_PATH && docker-compose up -d" /etc/crontab; then
-            sudo echo "@reboot root  cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
-        fi
-
-        if ! grep -q "$SCRIPT_PATH deploy" /etc/crontab; then
-            sudo echo "0 5 * * * root  $SCRIPT_PATH deploy" >>/etc/crontab
-        fi
-    fi
-}
-
-_backup() {
-    if [[ ! -d "$LARAVEL_PATH/storage/app/databases" ]] && [[ $TARGET != "docker" ]]; then
-        mkdir -p $LARAVEL_PATH/storage/app/databases
-    fi
-    if [[ $TARGET == "deploy" ]] && [[ $INSTALL != "y" ]] && [[ $PRODUCTION == "y" ]]; then
-        cd $LARADOCK_PATH
-        docker-compose exec workspace mysqldump \
-            --force \
-            --skip-lock-tables \
-            --host=$(grep DB_HOST $LARAVEL_PATH/.env | cut -d '=' -f2) \
-            --port=$(grep DB_PORT $LARAVEL_PATH/.env | cut -d '=' -f2) \
-            -p$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2) \
-            --user=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2) \
-            --databases $(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2) \
-            --ignore-table=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).migrations \
-            --ignore-table=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).telescope_entries \
-            --ignore-table=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).telescope_entries_tags \
-            --ignore-table=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).telescope_monitoring \
-            --result-file=./storage/app/databases/$(date '+%y-%m-%d_%H:%M').sql
-    fi
-}
-
-_mysql() {
+_env() {
     if [[ $INSTALL == "y" ]]; then
+        sed -i "s|PHP_FPM_INSTALL_SOAP=.*|PHP_FPM_INSTALL_SOAP=true|" $LARADOCK_PATH/.env
+        sed -i "s|WORKSPACE_INSTALL_MYSQL_CLIENT=.*|WORKSPACE_INSTALL_MYSQL_CLIENT=true|" $LARADOCK_PATH/.env
+
         sed -i "s|MYSQL_DATABASE=.*|MYSQL_DATABASE=$DB_DATABASE|" $LARADOCK_PATH/.env
         sed -i "s|MYSQL_USER=.*|MYSQL_USER=$DB_USERNAME|" $LARADOCK_PATH/.env
         sed -i "s|MYSQL_PASSWORD=.*|MYSQL_PASSWORD=$DB_PASSWORD|" $LARADOCK_PATH/.env
@@ -125,108 +98,6 @@ _mysql() {
         sed -i "s|MARIADB_USER=.*|MARIADB_USER=$DB_USERNAME|" $LARADOCK_PATH/.env
         sed -i "s|MARIADB_PASSWORD=.*|MARIADB_PASSWORD=$DB_PASSWORD|" $LARADOCK_PATH/.env
         sed -i "s|MARIADB_ROOT_PASSWORD=.*|MARIADB_ROOT_PASSWORD=$DB_ROOT_PASSWORD|" $LARADOCK_PATH/.env
-    fi
-
-    if ! grep -q "max_allowed_packet=16M" $LARADOCK_PATH/$DB_ENGINE/my.cnf; then
-        echo "" >$LARADOCK_PATH/$DB_ENGINE/my.cnf
-        echo "[mysqld]" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
-        echo "max_allowed_packet=16M" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
-    fi
-
-    if [[ $TARGET != "docker" ]] && [[ $INSTALL == "y" ]]; then
-        cd $LARADOCK_PATH
-        docker-compose up -d $DB_ENGINE
-
-        if [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]] ||
-            [[ $(docker-compose exec $DB_ENGINE mysql -u $(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2) -p$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]]; then
-            echo -n "Do you want re-install database?" && read DATABASE_REINSTALL
-            if [[ $DATABASE_REINSTALL == "y" ]]; then
-                docker-compose rm --force --stop -v $DB_ENGINE
-                rm -rf ~/.laradock/data/$DB_ENGINE
-                docker-compose up -d --force-recreate $DB_ENGINE
-            fi
-
-            SQL="ALTER USER 'root'@'localhost' IDENTIFIED BY '$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)';"
-            SQL+="CREATE DATABASE IF NOT EXISTS $(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2) COLLATE 'utf8_general_ci';"
-            SQL+="CREATE USER '$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)'@'localhost' IDENTIFIED BY '$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)';"
-            SQL+="GRANT ALL ON $(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).* TO '$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)'@'localhost';"
-            SQL+="FLUSH PRIVILEGES;"
-
-            if [[ $(docker-compose exec $DB_ENGINE mysql -u root -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                docker-compose exec $DB_ENGINE mysql -u root -e "$SQL"
-            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                docker-compose exec $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "$SQL"
-            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -proot -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                docker-compose exec $DB_ENGINE mysql -u root -proot -e "$SQL"
-            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -psecret -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                docker-compose exec $DB_ENGINE mysql -u root -psecret -e "$SQL"
-            fi
-        fi
-    fi
-}
-
-_nginx() {
-    if [[ $TARGET != "docker" ]] && [[ $INSTALL == "y" ]]; then
-        rm -f $LARADOCK_PATH/nginx/sites/default.conf
-        wget -N https://raw.githubusercontent.com/alirezamaleky/nginx-config/master/default.conf -P $LARADOCK_PATH/nginx/sites
-        sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/default.conf
-
-        cd $LARADOCK_PATH
-        docker-compose build --no-cache nginx
-        docker-compose up -d nginx
-    fi
-}
-
-_redis() {
-    if [[ $INSTALL == "y" ]]; then
-        sed -i "s|REDIS_STORAGE_SERVER_PASSWORD=.*|REDIS_STORAGE_SERVER_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
-        sed -i "s|REDIS_RESULT_STORAGE_SERVER_PASSWORD=.*|REDIS_RESULT_STORAGE_SERVER_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
-        sed -i "s|REDIS_QUEUE_SERVER_PASSWORD=.*|REDIS_QUEUE_SERVER_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
-        sed -i "s|REDIS_PORT=.*|REDIS_PORT=127.0.0.1:6379|" $LARADOCK_PATH/.env
-        sed -i "s|build: ./redis|build:\n        context: ./redis\n        args:\n            REDIS_PASSWORD: \${REDIS_PASSWORD}|" $LARADOCK_PATH/docker-compose.yml
-        if ! grep -q "REDIS_PASSWORD" $LARADOCK_PATH/.env; then
-            echo "REDIS_PASSWORD=$REDIS_PASSWORD" >>$LARADOCK_PATH/.env
-        else
-            sed -i "s|REDIS_PASSWORD=.*|REDIS_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
-        fi
-        if ! grep -q "requirepass __REDIS_PASSWORD__" $LARADOCK_PATH/redis/redis.conf; then
-            echo "requirepass __REDIS_PASSWORD__" >>$LARADOCK_PATH/redis/redis.conf
-        fi
-        if ! grep -q "REDIS_PASSWORD" $LARADOCK_PATH/redis/Dockerfile; then
-            REDIS_DOCKERFILE='FROM redis:latest'
-            REDIS_DOCKERFILE+='\n\nARG REDIS_PASSWORD=secret'
-            REDIS_DOCKERFILE+='\n\nRUN mkdir -p /usr/local/etc/redis'
-            REDIS_DOCKERFILE+='\nCOPY redis.conf /usr/local/etc/redis/redis.conf'
-            REDIS_DOCKERFILE+='\nRUN sed -i "s|__REDIS_PASSWORD__|'$REDIS_PASSWORD'|g" /usr/local/etc/redis/redis.conf'
-            REDIS_DOCKERFILE+='\n\nVOLUME /data'
-            REDIS_DOCKERFILE+='\n\nEXPOSE 6379'
-            REDIS_DOCKERFILE+='\n\nCMD ["redis-server", "/usr/local/etc/redis/redis.conf"]'
-            echo -e $REDIS_DOCKERFILE >$LARADOCK_PATH/redis/Dockerfile
-        fi
-        docker-compose build --no-cache redis
-        docker-compose up -d redis
-    fi
-}
-
-_git() {
-    if ! grep -q "deploy.sh" $LARAVEL_PATH/.gitignore; then
-        echo "deploy.sh" >>$LARAVEL_PATH/.gitignore
-    fi
-    if ! grep -q "laradock" $LARAVEL_PATH/.gitignore; then
-        echo "laradock" >>$LARAVEL_PATH/.gitignore
-    fi
-
-    if [[ $PRODUCTION == "y" ]]; then
-        git checkout -f $LARAVEL_PATH
-        git pull origin master
-    fi
-}
-
-_env() {
-    if [[ $INSTALL == "y" ]]; then
-        sed -i "s|PHP_FPM_INSTALL_SOAP=.*|PHP_FPM_INSTALL_SOAP=true|" $LARADOCK_PATH/.env
-        sed -i "s|WORKSPACE_INSTALL_MYSQL_CLIENT=.*|WORKSPACE_INSTALL_MYSQL_CLIENT=true|" $LARADOCK_PATH/.env
-
         sed -i "s|PMA_DB_ENGINE=.*|PMA_DB_ENGINE=$DB_ENGINE|" $LARADOCK_PATH/.env
         sed -i "s|PMA_PORT=.*|PMA_PORT=$PMA_PORT|" $LARADOCK_PATH/.env
         sed -i "s|PMA_USER=.*|PMA_USER=$DB_USERNAME|" $LARADOCK_PATH/.env
@@ -239,6 +110,15 @@ _env() {
         sed -i "s|MAILU_SECRET_KEY=.*|MAILU_SECRET_KEY=$(openssl rand -base64 16)|" $LARADOCK_PATH/.env
         sed -i "s|MAILU_INIT_ADMIN_USERNAME=.*|MAILU_INIT_ADMIN_USERNAME=$MAIL_USERNAME|" $LARADOCK_PATH/.env
         sed -i "s|MAILU_INIT_ADMIN_PASSWORD=.*|MAILU_INIT_ADMIN_PASSWORD=$MAIL_PASSWORD|" $LARADOCK_PATH/.env
+        sed -i "s|REDIS_STORAGE_SERVER_PASSWORD=.*|REDIS_STORAGE_SERVER_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
+        sed -i "s|REDIS_RESULT_STORAGE_SERVER_PASSWORD=.*|REDIS_RESULT_STORAGE_SERVER_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
+        sed -i "s|REDIS_QUEUE_SERVER_PASSWORD=.*|REDIS_QUEUE_SERVER_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
+        sed -i "s|REDIS_PORT=.*|REDIS_PORT=127.0.0.1:6379|" $LARADOCK_PATH/.env
+        if ! grep -q "REDIS_PASSWORD" $LARADOCK_PATH/.env; then
+            echo "REDIS_PASSWORD=$REDIS_PASSWORD" >>$LARADOCK_PATH/.env
+        else
+            sed -i "s|REDIS_PASSWORD=.*|REDIS_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
+        fi
 
         echo "alias nr='npm run'" >>$LARADOCK_PATH/workspace/aliases.sh
         echo "alias pa='php artisan'" >>$LARADOCK_PATH/workspace/aliases.sh
@@ -279,11 +159,131 @@ _env() {
     fi
 }
 
+_crontab() {
+    if [[ $PRODUCTION == "y" ]] && [[ $TARGET != "docker" ]]; then
+        if ! grep -q "$LARADOCK_PATH && docker-compose up -d" /etc/crontab; then
+            sudo echo "@reboot root  cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
+        fi
+
+        if ! grep -q "$SCRIPT_PATH deploy" /etc/crontab; then
+            sudo echo "0 5 * * * root  $SCRIPT_PATH deploy" >>/etc/crontab
+        fi
+    fi
+}
+
+_backup() {
+    if [[ ! -d "$LARAVEL_PATH/storage/app/databases" ]] && [[ $TARGET != "docker" ]]; then
+        mkdir -p $LARAVEL_PATH/storage/app/databases
+    fi
+    if [[ $TARGET == "deploy" ]] && [[ $INSTALL != "y" ]] && [[ $PRODUCTION == "y" ]]; then
+        cd $LARADOCK_PATH
+        docker-compose exec workspace mysqldump \
+            --force \
+            --skip-lock-tables \
+            --host=$(grep DB_HOST $LARAVEL_PATH/.env | cut -d '=' -f2) \
+            --port=$(grep DB_PORT $LARAVEL_PATH/.env | cut -d '=' -f2) \
+            -p$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2) \
+            --user=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2) \
+            --databases $(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2) \
+            --ignore-table=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).migrations \
+            --ignore-table=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).telescope_entries \
+            --ignore-table=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).telescope_entries_tags \
+            --ignore-table=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).telescope_monitoring \
+            --result-file=./storage/app/databases/$(date '+%y-%m-%d_%H:%M').sql
+    fi
+}
+
+_mysql() {
+    if ! grep -q "max_allowed_packet=16M" $LARADOCK_PATH/$DB_ENGINE/my.cnf; then
+        echo "" >$LARADOCK_PATH/$DB_ENGINE/my.cnf
+        echo "[mysqld]" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
+        echo "max_allowed_packet=16M" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
+    fi
+
+    if [[ $TARGET != "docker" ]] && [[ $INSTALL == "y" ]]; then
+        cd $LARADOCK_PATH
+        docker-compose up -d $DB_ENGINE
+
+        if [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]] ||
+            [[ $(docker-compose exec $DB_ENGINE mysql -u $(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2) -p$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]]; then
+            if [[ $INSTALL == "y" ]]; then
+                docker-compose rm --force --stop -v $DB_ENGINE
+                rm -rf ~/.laradock/data/$DB_ENGINE
+                docker-compose up -d --force-recreate $DB_ENGINE
+            fi
+
+            SQL="ALTER USER 'root'@'localhost' IDENTIFIED BY '$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)';"
+            SQL+="CREATE DATABASE IF NOT EXISTS $(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2) COLLATE 'utf8_general_ci';"
+            SQL+="CREATE USER '$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)'@'localhost' IDENTIFIED BY '$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)';"
+            SQL+="GRANT ALL ON $(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).* TO '$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)'@'localhost';"
+            SQL+="FLUSH PRIVILEGES;"
+
+            if [[ $(docker-compose exec $DB_ENGINE mysql -u root -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+                docker-compose exec $DB_ENGINE mysql -u root -e "$SQL"
+            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+                docker-compose exec $DB_ENGINE mysql -u root -p$(grep MARIADB_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "$SQL"
+            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -proot -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+                docker-compose exec $DB_ENGINE mysql -u root -proot -e "$SQL"
+            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -psecret -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+                docker-compose exec $DB_ENGINE mysql -u root -psecret -e "$SQL"
+            fi
+        fi
+    fi
+}
+
+_nginx() {
+    if [[ $TARGET != "docker" ]] && [[ $INSTALL == "y" ]]; then
+        rm -f $LARADOCK_PATH/nginx/sites/default.conf
+        wget -N https://raw.githubusercontent.com/alirezamaleky/nginx-config/master/default.conf -P $LARADOCK_PATH/nginx/sites
+        sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/default.conf
+
+        cd $LARADOCK_PATH
+        docker-compose build --no-cache nginx
+        docker-compose up -d nginx
+    fi
+}
+
+_redis() {
+    if [[ $INSTALL == "y" ]]; then
+        sed -i "s|build: ./redis|build:\n        context: ./redis\n        args:\n            REDIS_PASSWORD: \${REDIS_PASSWORD}|" $LARADOCK_PATH/docker-compose.yml
+        if ! grep -q "requirepass __REDIS_PASSWORD__" $LARADOCK_PATH/redis/redis.conf; then
+            echo "requirepass __REDIS_PASSWORD__" >>$LARADOCK_PATH/redis/redis.conf
+        fi
+        if ! grep -q "REDIS_PASSWORD" $LARADOCK_PATH/redis/Dockerfile; then
+            REDIS_DOCKERFILE='FROM redis:latest'
+            REDIS_DOCKERFILE+='\n\nARG REDIS_PASSWORD=secret'
+            REDIS_DOCKERFILE+='\n\nRUN mkdir -p /usr/local/etc/redis'
+            REDIS_DOCKERFILE+='\nCOPY redis.conf /usr/local/etc/redis/redis.conf'
+            REDIS_DOCKERFILE+='\nRUN sed -i "s|__REDIS_PASSWORD__|'$REDIS_PASSWORD'|g" /usr/local/etc/redis/redis.conf'
+            REDIS_DOCKERFILE+='\n\nVOLUME /data'
+            REDIS_DOCKERFILE+='\n\nEXPOSE 6379'
+            REDIS_DOCKERFILE+='\n\nCMD ["redis-server", "/usr/local/etc/redis/redis.conf"]'
+            echo -e $REDIS_DOCKERFILE >$LARADOCK_PATH/redis/Dockerfile
+        fi
+        docker-compose build --no-cache redis
+        docker-compose up -d redis
+    fi
+}
+
+_git() {
+    if ! grep -q "deploy.sh" $LARAVEL_PATH/.gitignore; then
+        echo "deploy.sh" >>$LARAVEL_PATH/.gitignore
+    fi
+    if ! grep -q "laradock" $LARAVEL_PATH/.gitignore; then
+        echo "laradock" >>$LARAVEL_PATH/.gitignore
+    fi
+
+    if [[ $PRODUCTION == "y" ]]; then
+        git checkout -f $LARAVEL_PATH
+        git pull origin master
+    fi
+}
+
 _up() {
     cd $LARADOCK_PATH
     docker-compose up -d $CONTAINERS
     if [[ $TARGET == "deploy" ]]; then
-        sudo docker-compose exec workspace "/var/www/deploy.sh" docker
+        sudo docker-compose exec workspace "bash" /var/www/deploy.sh docker
     else
         docker-compose exec workspace bash
     fi
