@@ -201,16 +201,16 @@ _mysql() {
         echo "max_allowed_packet=16M" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
     fi
 
-    if [[ $TARGET != "docker" ]] && [[ $INSTALL == "y" ]]; then
+    if [[ $TARGET != "deploy" ]]; then
         cd $LARADOCK_PATH
         docker-compose up -d $DB_ENGINE
 
         if [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]] ||
             [[ $(docker-compose exec $DB_ENGINE mysql -u $(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2) -p$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") == *"ERROR"* ]]; then
             if [[ $INSTALL == "y" ]]; then
-                docker-compose rm --force --stop -v $DB_ENGINE
                 rm -rf ~/.laradock/data/$DB_ENGINE
-                docker-compose up -d --force-recreate $DB_ENGINE
+                docker-compose build --no-cache $DB_ENGINE
+                docker-compose up -d $DB_ENGINE
             fi
 
             SQL="ALTER USER 'root'@'localhost' IDENTIFIED BY '$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)';"
