@@ -229,8 +229,7 @@ _mysql() {
             elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -psecret -e "SHOW DATABASES;") != *"ERROR"* ]]; then
                 docker-compose exec $DB_ENGINE mysql -u root -psecret -e "$SQL"
             else
-                echo -e "Please config db manualy:\n"$SQL
-                read OK
+                echo -e "Please config db manualy:\n"$SQL && read OK
             fi
         fi
     fi
