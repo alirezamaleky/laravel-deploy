@@ -11,7 +11,7 @@ if [[ ! -d "$LARAVEL_PATH/laradock" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [
     if [[ $TARGET != "docker" ]]; then
         echo -n "Is this first install? [y/N] " && read INSTALL
     fi
-    if [[ ! -z $INSTALL ]]; then
+    if [[ -z $INSTALL ]]; then
         INSTALL="y"
     fi
 fi
