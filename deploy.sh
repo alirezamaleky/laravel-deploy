@@ -24,7 +24,7 @@ else
     fi
 fi
 
-CONTAINERS="nginx mariadb phpmyadmin redis"
+CONTAINERS="nginx mysql phpmyadmin redis"
 # if [[ $PRODUCTION == "y" ]]; then
 #     CONTAINERS+=" mailu"
 # fi
@@ -227,6 +227,9 @@ _mysql() {
                 docker-compose exec $DB_ENGINE mysql -u root -proot -e "$SQL"
             elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -psecret -e "SHOW DATABASES;") != *"ERROR"* ]]; then
                 docker-compose exec $DB_ENGINE mysql -u root -psecret -e "$SQL"
+            else
+                echo -e "Please config db manualy:\n"$SQL
+                read OK
             fi
         fi
     fi
