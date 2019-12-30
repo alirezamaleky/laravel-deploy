@@ -201,7 +201,7 @@ _mysql() {
         echo "max_allowed_packet=16M" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
     fi
 
-    if [[ $TARGET != "deploy" ]]; then
+    if [[ $TARGET == "deploy" ]]; then
         cd $LARADOCK_PATH
         docker-compose up -d $DB_ENGINE
 
