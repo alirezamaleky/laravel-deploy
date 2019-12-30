@@ -220,17 +220,30 @@ _mysql() {
             SQL+="GRANT ALL ON $(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2).* TO '$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)'@'localhost';"
             SQL+="FLUSH PRIVILEGES;"
             SQL+=${SQL//localhost/%}
+            IFS=';' read -r -a SQL_ARRAY <<<"$SQL"
 
             if [[ $(docker-compose exec $DB_ENGINE mysql -u root -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                docker-compose exec $DB_ENGINE mysql -u root -e "$SQL"
+                for QUERY in "${SQL_ARRAY[@]}"; do
+                    echo docker-compose exec $DB_ENGINE mysql -u root -e "$QUERY;"
+                done
             elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                docker-compose exec $DB_ENGINE mysql -u root -p$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "$SQL"
+                for QUERY in "${SQL_ARRAY[@]}"; do
+                    echo docker-compose exec $DB_ENGINE mysql -u root -p$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2) -e "$QUERY;"
+                done
             elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -proot -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                docker-compose exec $DB_ENGINE mysql -u root -proot -e "$SQL"
+                for QUERY in "${SQL_ARRAY[@]}"; do
+                    echo docker-compose exec $DB_ENGINE mysql -u root -proot -e "$QUERY;"
+                done
             elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -psecret -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                docker-compose exec $DB_ENGINE mysql -u root -psecret -e "$SQL"
+                for QUERY in "${SQL_ARRAY[@]}"; do
+                    echo docker-compose exec $DB_ENGINE mysql -u root -psecret -e "$QUERY;"
+                done
             else
-                echo -e "Please config db manualy:\n"$SQL && read OK
+                echo -e "Please config db manualy:\n"
+                for QUERY in "${SQL_ARRAY[@]}"; do
+                    echo docker-compose exec $DB_ENGINE mysql -u root -psecret -e "$QUERY;"
+                done
+                read OK
             fi
         fi
     fi
