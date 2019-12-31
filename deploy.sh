@@ -351,6 +351,7 @@ _laravel() {
     if [[ $INSTALL == "y" ]]; then
         php artisan migrate --force --seed
         php artisan storage:link
+        php artisan telescope:publish
     else
         php artisan migrate --force
         php artisan queue:restart
