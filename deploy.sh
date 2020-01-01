@@ -351,7 +351,6 @@ _laravel() {
     if [[ $INSTALL == "y" ]]; then
         php artisan migrate --force --seed
         php artisan storage:link
-        php artisan telescope:publish
     else
         php artisan migrate --force
         php artisan queue:restart
@@ -365,6 +364,8 @@ _laravel() {
         php artisan optimize:clear
         php artisan view:clear
     fi
+
+    php artisan telescope:publish
 
     if [[ $PRODUCTION == "y" ]]; then
         yarn global add html-minifier
