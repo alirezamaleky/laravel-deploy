@@ -155,7 +155,7 @@ _env() {
         sed -i "s|LOG_CHANNEL=.*|LOG_CHANNEL=daily|" $LARAVEL_PATH/.env
         sed -i "s|BROADCAST_DRIVER=.*|BROADCAST_DRIVER=redis|" $LARAVEL_PATH/.env
         sed -i "s|CACHE_DRIVER=.*|CACHE_DRIVER=redis|" $LARAVEL_PATH/.env
-        sed -i "s|QUEUE_CONNECTION=.*|QUEUE_CONNECTION=redis|" $LARAVEL_PATH/.env
+        sed -i "s|QUEUE_CONNECTION=.*|QUEUE_CONNECTION=sync|" $LARAVEL_PATH/.env
         sed -i "s|SESSION_DRIVER=.*|SESSION_DRIVER=redis|" $LARAVEL_PATH/.env
 
         sed -i "s|APP_URL=.*|APP_URL=https://$DOMAIN|" $LARAVEL_PATH/.env
@@ -297,6 +297,7 @@ _git() {
     fi
 
     if [[ $PRODUCTION == "y" ]]; then
+        cd $LARAVEL_PATH
         git checkout -f $LARAVEL_PATH
         git pull origin master
     fi
