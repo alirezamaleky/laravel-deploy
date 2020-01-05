@@ -186,7 +186,7 @@ _backup() {
     fi
     if [[ $TARGET == "deploy" ]] && [[ $INSTALL != "y" ]] && [[ $PRODUCTION == "y" ]]; then
         cd $LARADOCK_PATH
-        docker-compose exec -T workspace mysqldump \
+        docker-compose exec workspace mysqldump \
             --force \
             --skip-lock-tables \
             --host=$DB_ENGINE \
@@ -198,7 +198,7 @@ _backup() {
             --ignore-table=$DB_DATABASE.telescope_entries \
             --ignore-table=$DB_DATABASE.telescope_entries_tags \
             --ignore-table=$DB_DATABASE.telescope_monitoring \
-            --result-file=./storage/app/databases/$(date '+%y-%m-%d_%H:%M').sql
+            --result-file=./storage/app/databases/$(date '+%y-%m-%d_%H:%M').sql -T
     fi
 }
 
@@ -213,8 +213,8 @@ _mysql() {
         cd $LARADOCK_PATH
         docker-compose up -d $DB_ENGINE
 
-        if [[ $(docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;") == *"ERROR"* ]] ||
-            [[ $(docker-compose exec -T $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;") == *"ERROR"* ]]; then
+        if [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;") == *"ERROR"* ]] ||
+            [[ $(docker-compose exec $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;") == *"ERROR"* ]]; then
             if [[ $INSTALL == "y" ]]; then
                 rm -rf ~/.laradock/data/$DB_ENGINE
                 docker-compose build --no-cache $DB_ENGINE
@@ -230,14 +230,14 @@ _mysql() {
             SQL+=${SQL//localhost/%}
             IFS=';' read -r -a SQL_ARRAY <<<"$SQL"
 
-            if [[ $(docker-compose exec -T $DB_ENGINE mysql -u root -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                DB_COMPOSE="docker-compose exec -T $DB_ENGINE mysql -u root -e"
-            elif [[ $(docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                DB_COMPOSE="docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e"
-            elif [[ $(docker-compose exec -T $DB_ENGINE mysql -u root -proot -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                DB_COMPOSE="docker-compose exec -T $DB_ENGINE mysql -u root -proot -e"
-            elif [[ $(docker-compose exec -T $DB_ENGINE mysql -u root -psecret -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                DB_COMPOSE="docker-compose exec -T $DB_ENGINE mysql -u root -psecret -e"
+            if [[ $(docker-compose exec $DB_ENGINE mysql -u root -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+                DB_COMPOSE="docker-compose exec $DB_ENGINE mysql -u root -e"
+            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+                DB_COMPOSE="docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e"
+            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -proot -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+                DB_COMPOSE="docker-compose exec $DB_ENGINE mysql -u root -proot -e"
+            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -psecret -e "SHOW DATABASES;") != *"ERROR"* ]]; then
+                DB_COMPOSE="docker-compose exec $DB_ENGINE mysql -u root -psecret -e"
             fi
 
             if [[ ! -z $DB_COMPOSE ]]; then
@@ -320,9 +320,9 @@ _up() {
     cd $LARADOCK_PATH
     docker-compose up -d $CONTAINERS
     if [[ $TARGET == "deploy" ]]; then
-        sudo docker-compose exec -T workspace "bash" /var/www/deploy.sh docker
+        sudo docker-compose exec workspace "bash" /var/www/deploy.sh docker -T
     else
-        docker-compose exec -T workspace bash
+        docker-compose exec workspace bash
     fi
 }
 
