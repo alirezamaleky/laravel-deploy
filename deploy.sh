@@ -389,13 +389,15 @@ _laravel() {
 }
 
 _permission() {
-    killall find
-    find $LARAVEL_PATH -type f -exec chmod 644 {} \;
-    find $LARAVEL_PATH -type d -exec chmod 755 {} \;
+    if [[ $INSTALL == "y" ]]; then
+        killall find
+        find $LARAVEL_PATH -type f -exec chmod 644 {} \;
+        find $LARAVEL_PATH -type d -exec chmod 755 {} \;
+    fi
     chmod -R 775 $LARAVEL_PATH/storage $LARAVEL_PATH/bootstrap/cache $LARAVEL_PATH/node_modules
     chmod -R 600 $LARAVEL_PATH/.env $LARAVEL_PATH/storage/app/databases
     chmod +x $LARAVEL_PATH/deploy.sh
-    if [[ $PRODUCTION != "y" ]]; then
+    if [[ -f "$LARAVEL_PATH/vendor/bin/phpunit" ]]; then
         chmod +x $LARAVEL_PATH/vendor/bin/phpunit
     fi
     chown -R laradock:laradock $LARAVEL_PATH
