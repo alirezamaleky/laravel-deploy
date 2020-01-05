@@ -186,7 +186,7 @@ _backup() {
     fi
     if [[ $TARGET == "deploy" ]] && [[ $INSTALL != "y" ]] && [[ $PRODUCTION == "y" ]]; then
         cd $LARADOCK_PATH
-        docker-compose exec workspace mysqldump \
+        docker-compose exec -T workspace mysqldump \
             --force \
             --skip-lock-tables \
             --host=$DB_ENGINE \
@@ -198,7 +198,7 @@ _backup() {
             --ignore-table=$DB_DATABASE.telescope_entries \
             --ignore-table=$DB_DATABASE.telescope_entries_tags \
             --ignore-table=$DB_DATABASE.telescope_monitoring \
-            --result-file=./storage/app/databases/$(date '+%y-%m-%d_%H:%M').sql -T
+            --result-file=./storage/app/databases/$(date '+%y-%m-%d_%H:%M').sql
     fi
 }
 
@@ -320,7 +320,7 @@ _up() {
     cd $LARADOCK_PATH
     docker-compose up -d $CONTAINERS
     if [[ $TARGET == "deploy" ]]; then
-        sudo docker-compose exec workspace "bash" /var/www/deploy.sh docker -T
+        sudo docker-compose exec -T workspace "bash" /var/www/deploy.sh docker
     else
         docker-compose exec workspace bash
     fi
