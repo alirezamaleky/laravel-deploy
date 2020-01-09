@@ -311,6 +311,7 @@ _git() {
 
     if [[ $PRODUCTION == "y" ]]; then
         cd $LARAVEL_PATH
+        git checkout -f master
         git checkout -f .
         git pull origin master
     fi
