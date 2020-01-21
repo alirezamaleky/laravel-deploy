@@ -71,12 +71,14 @@ else
     DB_ENGINE=mysql
 fi
 
-if [[ -f $LARAVEL_PATH/.env ]] && [[ -f $LARADOCK_PATH/.env ]]; then
+if [[ -f $LARAVEL_PATH/.env ]]; then
     DB_DATABASE=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2)
     DB_USERNAME=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)
     DB_PASSWORD=$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)
+fi
+if [[ -f $LARADOCK_PATH/.env ]]; then
     DB_ROOT_PASSWORD=$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)
-    REDIS_PASSWORD=$(grep REDIS_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)
+    REDIS_PASSWORD=$(grep REDIS_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)
 fi
 if [[ $INSTALL == y* ]] && [[ $TARGET != "docker" ]]; then
     read -p "DOMAIN: " DOMAIN
