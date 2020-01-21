@@ -283,7 +283,7 @@ _mysql() {
 
             if [[ ! -z $DB_TEMP_PASS ]]; then
                 for QUERY in "${SQL_ARRAY[@]}"; do
-                    echo $DB_COMPOSE -p$DB_TEMP_PASS -e
+                    echo $QUERY
                     $DB_COMPOSE -p$DB_TEMP_PASS -e "$QUERY;"
                 done
                 docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;" &&
