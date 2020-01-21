@@ -34,7 +34,7 @@ for ((i = 1; i <= $#; i++)); do
         if [[ ! -z $(docker container ls -aq) ]]; then
             docker container stop $(docker container ls -aq)
             docker container rm -fv $(docker container ls -aq)
-            docker system prune --volumes
+            docker system prune -f --volumes
         fi
         sudo rm -fvr ~/.laradock $LARADOCK_PATH $LARAVEL_PATH/*
         git checkout -f .
