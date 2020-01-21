@@ -61,12 +61,12 @@ DB_ROOT_PASSWORD=$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -
 REDIS_PASSWORD=$(grep REDIS_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)
 if [[ $INSTALL == y* ]] && [[ $TARGET != "docker" ]]; then
     read -p "DOMAIN: " DOMAIN
-    read -p "APP_NAME: " APP_NAME
-    read -p "MAIL_USERNAME: " MAIL_USERNAME
-    read -p "MAIL_ENCRYPTION: " MAIL_ENCRYPTION
-    read -p "PMA_PORT: " PMA_PORT
-    read -p "MAILU_RECAPTCHA_PUBLIC_KEY: " MAILU_RECAPTCHA_PUBLIC_KEY
-    read -p "MAILU_RECAPTCHA_PRIVATE_KEY: " MAILU_RECAPTCHA_PRIVATE_KEY
+    read -e -p "APP_NAME: " -i "laravel" APP_NAME
+    read -e -p "MAIL_USERNAME: " -i "info@$DOMAIN" MAIL_USERNAME
+    read -e -p "MAIL_ENCRYPTION: " -i "tls" MAIL_ENCRYPTION
+    read -e -p "PMA_PORT: " -i "8001" PMA_PORT
+    # read -p "MAILU_RECAPTCHA_PUBLIC_KEY: " MAILU_RECAPTCHA_PUBLIC_KEY
+    # read -p "MAILU_RECAPTCHA_PRIVATE_KEY: " MAILU_RECAPTCHA_PRIVATE_KEY
 
     DB_DATABASE="${APP_PATH}_db"
     DB_USERNAME="${APP_PATH}_user"
