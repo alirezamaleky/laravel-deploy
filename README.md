@@ -21,5 +21,5 @@ Go to project directory and paste following commands:
 rm -f ./deploy.sh
 wget -N https://raw.githubusercontent.com/alirezamaleky/laravel-deploy/master/deploy.sh
 chmod +x ./deploy.sh
-./deploy.sh -t deploy -d project_folder
+./deploy.sh -t deploy -p project_folder
 ```
