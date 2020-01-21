@@ -451,4 +451,5 @@ else
         _git
         _up
     fi
+    echo "Installation takes $((SECONDS - ELAPSED_SEC)) second."
 fi
