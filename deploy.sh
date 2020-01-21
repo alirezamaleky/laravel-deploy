@@ -286,6 +286,7 @@ _nginx() {
         rm -f $LARADOCK_PATH/nginx/sites/default.conf
         wget -N https://raw.githubusercontent.com/alirezamaleky/nginx-config/master/default.conf -P $LARADOCK_PATH/nginx/sites
         mv $LARADOCK_PATH/nginx/sites/default.conf $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
+        sed -i "s|/var/www/public;|/var/www/$APP_PATH/public;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
         sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
 
         cd $LARADOCK_PATH
