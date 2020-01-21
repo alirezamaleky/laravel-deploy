@@ -371,7 +371,7 @@ _up() {
     if [[ $TARGET == "deploy" ]]; then
         sudo docker-compose exec -T workspace /var/www/deploy.sh -t docker -p $APP_PATH
     else
-        docker-compose exec -T workspace bash
+        docker-compose exec -T workspace bash -p $APP_PATH
     fi
 }
 
@@ -445,7 +445,7 @@ _permission() {
     fi
     chmod -R 775 $LARAVEL_PATH/storage $LARAVEL_PATH/bootstrap/cache $LARAVEL_PATH/node_modules
     chmod -R 600 $LARAVEL_PATH/.env $LARAVEL_PATH/storage/app/databases
-    chmod +x $LARAVEL_PATH/deploy.sh
+    chmod +x $SCRIPT_PATH
     if [[ -f "$LARAVEL_PATH/vendor/bin/phpunit" ]]; then
         chmod +x $LARAVEL_PATH/vendor/bin/phpunit
     fi
