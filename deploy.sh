@@ -17,7 +17,7 @@ _path() {
 
     SCRIPT_PATH=$(realpath $0)
     LARAVEL_PATH=$(dirname $SCRIPT_PATH)/$APP_PATH
-    LARADOCK_PATH=$LARAVEL_PATH/laradock
+    LARADOCK_PATH=$(dirname $SCRIPT_PATH)/laradock
 
     if [[ ! -z $APP_PATH ]] && [[ -d "$LARAVEL_PATH/public" ]]; then
         cd $LARAVEL_PATH
@@ -32,7 +32,7 @@ if [[ ! -d "$LARADOCK_PATH" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "
     if [[ -z $INSTALL ]] && [[ $TARGET != "docker" ]] && [[ -f "$LARAVEL_PATH/.env" ]] && [[ -f "$LARADOCK_PATH/.env" ]]; then
         read -p "Is this first install? [y/n] " INSTALL
     fi
-    INSTALL=${INSTALL:-y}
+    INSTALL=${INSTALL:-y}0
 fi
 
 if [[ $INSTALL == y* ]] && [[ $TARGET != "docker" ]]; then
