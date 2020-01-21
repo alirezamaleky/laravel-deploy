@@ -282,18 +282,15 @@ _mysql() {
             $DB_COMPOSE -e 'SHOW DATABASES;' -proot && DB_TEMP_PASS="root"
             $DB_COMPOSE -e 'SHOW DATABASES;' -psecret && DB_TEMP_PASS="secret"
 
-            if [[ ! -z $DB_TEMP_PASS ]]; then
-                for QUERY in "${SQL_ARRAY[@]}"; do
-                    echo $QUERY
-                    $DB_COMPOSE -p$DB_TEMP_PASS -e "$QUERY;"
-                done
-                docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;" &&
-                    docker-compose exec -T $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;" &&
-                    DB_STATUS='1'
-                if [[ $DB_STATUS != '1' ]]; then
-                    _mysql
-                fi
-            else
+            for QUERY in "${SQL_ARRAY[@]}"; do
+                echo $QUERY
+                $DB_COMPOSE -p$DB_TEMP_PASS -e "$QUERY;"
+            done
+
+            docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;" &&
+                docker-compose exec -T $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;" &&
+                DB_STATUS='1'
+            if [[ $DB_STATUS != '1' ]]; then
                 _mysql
             fi
         fi
@@ -473,4 +470,3 @@ else
     fi
     echo "Installation takes $((SECONDS - ELAPSED_SEC)) second."
 fi
-
