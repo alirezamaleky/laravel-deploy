@@ -101,7 +101,7 @@ _laradock() {
 
     if [[ $PRODUCTION == y* ]] && [[ $TARGET != "docker" ]]; then
         if ! grep -q "/var/www/$APP_PATH"; then
-            if ! grep -q "php artisan"; then
+            if grep -q "/var/www/artisan"; then
                 echo "" >$LARADOCK_PATH/workspace/crontab/laradock
             fi
             echo "* * * * * laradock /usr/bin/php /var/www/$APP_PATH/artisan schedule:run >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
