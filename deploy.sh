@@ -350,13 +350,6 @@ _php() {
 }
 
 _git() {
-    if ! grep -q "deploy.sh" $LARAVEL_PATH/.gitignore; then
-        echo "deploy.sh" >>$LARAVEL_PATH/.gitignore
-    fi
-    if ! grep -q "laradock" $LARAVEL_PATH/.gitignore; then
-        echo "laradock" >>$LARAVEL_PATH/.gitignore
-    fi
-
     if [[ $PRODUCTION == y* ]]; then
         cd $LARAVEL_PATH
         git checkout -f master
