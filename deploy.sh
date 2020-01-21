@@ -80,13 +80,14 @@ if [[ $INSTALL == y* ]] && [[ $TARGET != "docker" ]]; then
         REDIS_PASSWORD=$(openssl rand -base64 15)
     fi
 
+    echo -e "\n\n\n\n\n"
     echo "DB_DATABASE=$DB_DATABASE"
     echo "DB_USERNAME=$DB_USERNAME"
     echo "DB_PASSWORD=$DB_PASSWORD"
     echo "DB_ROOT_PASSWORD=$DB_ROOT_PASSWORD"
     echo "REDIS_PASSWORD=$REDIS_PASSWORD"
     echo "PMA_PORT=$PMA_PORT"
-    read -p "Are you saved this informations?" NOTED
+    read -p "Are you saved this informations?" OK
 fi
 
 _laradock() {
@@ -263,14 +264,22 @@ _mysql() {
 
             if [[ ! -z $DB_COMPOSE ]]; then
                 for QUERY in "${SQL_ARRAY[@]}"; do
-                    echo $($DB_COMPOSE "$QUERY;")
+                    $DB_COMPOSE "$QUERY;"
                 done
             else
-                echo -e "\n\n"
+                echo -e "\n\n\n\n\n"
                 for QUERY in "${SQL_ARRAY[@]}"; do
                     echo "$QUERY;"
                 done
                 read -p "Do you run this queries?" OK
+            fi
+
+            $(docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;") &&
+                $(docker-compose exec -T $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;") &&
+                DB_STATUS='1'
+
+            if [[ $DB_STATUS != '1' ]]; then
+                _mysql
             fi
         fi
     fi
