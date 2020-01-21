@@ -1,23 +1,42 @@
 #!/bin/bash
 
-TARGET=$1
+for ((i = 1; i <= $#; i++)); do
+    if [ ${!i} = "-p" ]; then
+        ((i++))
+        APP_PATH=${!i}
+    elif [ ${!i} = "-t" ]; then
+        ((i++))
+        TARGET=${!i}
+    fi
+done
 
-ELAPSED_SEC=$SECONDS
-SCRIPT_PATH=$(realpath $0)
-LARAVEL_PATH=$(dirname $SCRIPT_PATH)
-LARADOCK_PATH=$LARAVEL_PATH/laradock
+_path() {
+    if [[ -z $APP_PATH ]]; then
+        read -p "APP_PATH: " APP_PATH
+    fi
+
+    SCRIPT_PATH=$(realpath $0)
+    LARAVEL_PATH=$(dirname $SCRIPT_PATH)
+    LARADOCK_PATH=$LARAVEL_PATH/laradock
+
+    if [[ -d "$APP_PATH/public" ]]; then
+        cd $APP_PATH
+    else
+        unset APP_PATH
+        _path
+    fi
+}
+_path
 
 if [[ ! -d "$LARAVEL_PATH/laradock" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "$LARAVEL_PATH/node_modules" ]]; then
-    if [[ $TARGET != "docker" ]]; then
-        echo -n "Is this first install? [y/N] " && read INSTALL
+    if [[ -z $INSTALL ]] && [[ $TARGET != "docker" ]]; then
+        read -p "Is this first install? [y/n] " INSTALL
     fi
-    if [[ -z $INSTALL ]]; then
-        INSTALL="y"
-    fi
+    INSTALL=${INSTALL:-y}
 fi
 
-if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
-    echo -n "Is the project in production? [y/N] " && read PRODUCTION
+if [[ $INSTALL == y* ]] && [[ $TARGET != "docker" ]]; then
+    read -p "Is the project in production? [y/n] " PRODUCTION
 else
     if [[ $(grep APP_ENV $LARAVEL_PATH/.env | cut -d '=' -f2) == "production" ]]; then
         PRODUCTION="y"
@@ -25,7 +44,7 @@ else
 fi
 
 CONTAINERS="nginx mariadb phpmyadmin redis"
-# if [[ $PRODUCTION == "y" ]]; then
+# if [[ $PRODUCTION == y* ]]; then
 #     CONTAINERS+=" mailu"
 # fi
 
@@ -35,37 +54,39 @@ else
     DB_ENGINE=mysql
 fi
 
-if [[ $INSTALL == "y" ]] && [[ $TARGET != "docker" ]]; then
-    echo -n "DB_DATABASE: " && read DATABASE
-    echo -n "DOMAIN: " && read DOMAIN
-    echo -n "APP_NAME: " && read APP_NAME
-    echo -n "MAIL_USERNAME: " && read MAIL_USERNAME
-    echo -n "MAIL_ENCRYPTION: " && read MAIL_ENCRYPTION
-    echo -n "PMA_PORT: " && read PMA_PORT
-    echo -n "MAILU_RECAPTCHA_PUBLIC_KEY: " && read MAILU_RECAPTCHA_PUBLIC_KEY
-    echo -n "MAILU_RECAPTCHA_PRIVATE_KEY: " && read MAILU_RECAPTCHA_PRIVATE_KEY
+DB_DATABASE=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2)
+DB_USERNAME=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)
+DB_PASSWORD=$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)
+DB_ROOT_PASSWORD=$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)
+REDIS_PASSWORD=$(grep REDIS_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)
+if [[ $INSTALL == y* ]] && [[ $TARGET != "docker" ]]; then
+    read -p "DOMAIN: " DOMAIN
+    read -p "APP_NAME: " APP_NAME
+    read -p "MAIL_USERNAME: " MAIL_USERNAME
+    read -p "MAIL_ENCRYPTION: " MAIL_ENCRYPTION
+    read -p "PMA_PORT: " PMA_PORT
+    read -p "MAILU_RECAPTCHA_PUBLIC_KEY: " MAILU_RECAPTCHA_PUBLIC_KEY
+    read -p "MAILU_RECAPTCHA_PRIVATE_KEY: " MAILU_RECAPTCHA_PRIVATE_KEY
 
-    DB_DATABASE="${DATABASE}_db"
-    DB_USERNAME="${DATABASE}_user"
+    DB_DATABASE="${APP_PATH}_db"
+    DB_USERNAME="${APP_PATH}_user"
     DB_PASSWORD=$(openssl rand -base64 15)
-    DB_ROOT_PASSWORD=$(openssl rand -base64 15)
     MAIL_HOST="mail.$DOMAIN"
     MAIL_PASSWORD=$(openssl rand -base64 15)
-    REDIS_PASSWORD=$(openssl rand -base64 15)
+    if [[ ${#DB_ROOT_PASSWORD} < 15 ]]; then
+        DB_ROOT_PASSWORD=$(openssl rand -base64 15)
+    fi
+    if [[ ${#REDIS_PASSWORD} < 15 ]]; then
+        REDIS_PASSWORD=$(openssl rand -base64 15)
+    fi
 
-    printf "\nDB_DATABASE=$DB_DATABASE"
-    printf "\nDB_USERNAME=$DB_USERNAME"
-    printf "\nDB_PASSWORD=$DB_PASSWORD"
-    printf "\nDB_ROOT_PASSWORD=$DB_ROOT_PASSWORD"
-    printf "\nREDIS_PASSWORD=$REDIS_PASSWORD"
-    printf "\nPMA_PORT=$PMA_PORT"
-    printf "\n\n Are you saved this informations?" && read NOTED
-else
-    DB_DATABASE=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2)
-    DB_USERNAME=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)
-    DB_PASSWORD=$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)
-    DB_ROOT_PASSWORD=$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)
-    REDIS_PASSWORD=$(grep REDIS_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)
+    echo "DB_DATABASE=$DB_DATABASE"
+    echo "DB_USERNAME=$DB_USERNAME"
+    echo "DB_PASSWORD=$DB_PASSWORD"
+    echo "DB_ROOT_PASSWORD=$DB_ROOT_PASSWORD"
+    echo "REDIS_PASSWORD=$REDIS_PASSWORD"
+    echo "PMA_PORT=$PMA_PORT"
+    read -p "Are you saved this informations?" NOTED
 fi
 
 _laradock() {
@@ -77,41 +98,37 @@ _laradock() {
         cp $LARADOCK_PATH/env-example $LARADOCK_PATH/.env
     fi
 
-    if [[ $PRODUCTION == "y" ]] && [[ $TARGET != "docker" ]]; then
-        if ! grep -q "schedule:run" $LARADOCK_PATH/workspace/crontab/laradock || ! grep -q "queue:work" $LARADOCK_PATH/workspace/crontab/laradock; then
-            echo "" >$LARADOCK_PATH/workspace/crontab/laradock
-            echo "* * * * * laradock /usr/bin/php /var/www/artisan schedule:run >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
-            echo "@reboot laradock /usr/bin/php /var/www/artisan queue:work --timeout=60 --sleep=3 >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
-            if [[ $INSTALL != "y" ]]; then
+    if [[ $PRODUCTION == y* ]] && [[ $TARGET != "docker" ]]; then
+        if ! grep -q "/var/www/$APP_PATH"; then
+            if ! grep -q "php artisan"; then
+                echo "" >$LARADOCK_PATH/workspace/crontab/laradock
+            fi
+            echo "* * * * * laradock /usr/bin/php /var/www/$APP_PATH/artisan schedule:run >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
+            echo "@reboot laradock /usr/bin/php /var/www/$APP_PATH/artisan queue:work --timeout=60 --sleep=3 >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
+            if [[ $INSTALL != y* ]]; then
                 cd $LARADOCK_PATH
                 docker-compose build --no-cache workspace
                 docker-compose up -d workspace
             fi
         fi
-    elif [[ $PRODUCTION != "y" ]] && [[ $INSTALL == "y" ]]; then
+    elif [[ $PRODUCTION != y* ]] && [[ $INSTALL == y* ]]; then
         echo "" >$LARADOCK_PATH/workspace/crontab/laradock
     fi
 }
 
 _env() {
-    if [[ $INSTALL == "y" ]]; then
+    if [[ $INSTALL == y* ]]; then
         sed -i "s|PHP_FPM_INSTALL_SOAP=.*|PHP_FPM_INSTALL_SOAP=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_MYSQL_CLIENT=.*|WORKSPACE_INSTALL_MYSQL_CLIENT=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_NPM_GULP=.*|WORKSPACE_INSTALL_NPM_GULP=false|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_NPM_VUE_CLI=.*|WORKSPACE_INSTALL_NPM_VUE_CLI=false|" $LARADOCK_PATH/.env
 
-        sed -i "s|MYSQL_DATABASE=.*|MYSQL_DATABASE=$DB_DATABASE|" $LARADOCK_PATH/.env
-        sed -i "s|MYSQL_USER=.*|MYSQL_USER=$DB_USERNAME|" $LARADOCK_PATH/.env
-        sed -i "s|MYSQL_PASSWORD=.*|MYSQL_PASSWORD=$DB_PASSWORD|" $LARADOCK_PATH/.env
         sed -i "s|MYSQL_ROOT_PASSWORD=.*|MYSQL_ROOT_PASSWORD=$DB_ROOT_PASSWORD|" $LARADOCK_PATH/.env
-        sed -i "s|MARIADB_DATABASE=.*|MARIADB_DATABASE=$DB_DATABASE|" $LARADOCK_PATH/.env
-        sed -i "s|MARIADB_USER=.*|MARIADB_USER=$DB_USERNAME|" $LARADOCK_PATH/.env
-        sed -i "s|MARIADB_PASSWORD=.*|MARIADB_PASSWORD=$DB_PASSWORD|" $LARADOCK_PATH/.env
         sed -i "s|MARIADB_ROOT_PASSWORD=.*|MARIADB_ROOT_PASSWORD=$DB_ROOT_PASSWORD|" $LARADOCK_PATH/.env
         sed -i "s|PMA_DB_ENGINE=.*|PMA_DB_ENGINE=$DB_ENGINE|" $LARADOCK_PATH/.env
         sed -i "s|PMA_PORT=.*|PMA_PORT=$PMA_PORT|" $LARADOCK_PATH/.env
-        sed -i "s|PMA_USER=.*|PMA_USER=$DB_USERNAME|" $LARADOCK_PATH/.env
-        sed -i "s|PMA_PASSWORD=.*|PMA_PASSWORD=$DB_PASSWORD|" $LARADOCK_PATH/.env
+        sed -i "s|PMA_USER=.*|PMA_USER=root|" $LARADOCK_PATH/.env
+        sed -i "s|PMA_PASSWORD=.*|PMA_PASSWORD=$DB_ROOT_PASSWORD|" $LARADOCK_PATH/.env
         sed -i "s|PMA_ROOT_PASSWORD=.*|PMA_ROOT_PASSWORD=$DB_ROOT_PASSWORD|" $LARADOCK_PATH/.env
         sed -i "s|MAILU_DOMAIN=.*|MAILU_DOMAIN=$DOMAIN|" $LARADOCK_PATH/.env
         sed -i "s|MAILU_RECAPTCHA_PUBLIC_KEY=.*|MAILU_RECAPTCHA_PUBLIC_KEY=$MAILU_RECAPTCHA_PUBLIC_KEY|" $LARADOCK_PATH/.env
@@ -133,10 +150,10 @@ _env() {
         echo "alias pa='php artisan'" >>$LARADOCK_PATH/workspace/aliases.sh
     fi
 
-    if [[ $INSTALL == "y" ]]; then
+    if [[ $INSTALL == y* ]]; then
         cp $LARAVEL_PATH/.env.example $LARAVEL_PATH/.env
 
-        if [[ $PRODUCTION == "y" ]]; then
+        if [[ $PRODUCTION == y* ]]; then
             sed -i "s|APP_ENV=.*|APP_ENV=production|" $LARAVEL_PATH/.env
             sed -i "s|APP_DEBUG=.*|APP_DEBUG=false|" $LARAVEL_PATH/.env
             sed -i "s|MAIL_HOST=.*|MAIL_HOST=$MAIL_HOST|" $LARAVEL_PATH/.env
@@ -169,13 +186,13 @@ _env() {
 }
 
 _crontab() {
-    if [[ $PRODUCTION == "y" ]] && [[ $TARGET != "docker" ]]; then
+    if [[ $PRODUCTION == y* ]] && [[ $TARGET != "docker" ]]; then
         if ! grep -q "$LARADOCK_PATH && docker-compose up -d" /etc/crontab; then
             sudo echo "@reboot root  cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
         fi
 
-        if ! grep -q "$SCRIPT_PATH deploy" /etc/crontab; then
-            sudo echo "0 5 * * * root  $SCRIPT_PATH deploy" >>/etc/crontab
+        if ! grep -q "$SCRIPT_PATH -t deploy -p $APP_PATH" /etc/crontab; then
+            sudo echo "0 5 * * * root  $SCRIPT_PATH -t deploy -p $APP_PATH" >>/etc/crontab
         fi
     fi
 }
@@ -184,7 +201,7 @@ _backup() {
     if [[ ! -d "$LARAVEL_PATH/storage/app/databases" ]] && [[ $TARGET != "docker" ]]; then
         mkdir -p $LARAVEL_PATH/storage/app/databases
     fi
-    if [[ $TARGET == "deploy" ]] && [[ $INSTALL != "y" ]] && [[ $PRODUCTION == "y" ]]; then
+    if [[ $TARGET == "deploy" ]] && [[ $INSTALL != y* ]] && [[ $PRODUCTION == y* ]]; then
         cd $LARADOCK_PATH
         docker-compose exec -T workspace mysqldump \
             --force \
@@ -213,53 +230,55 @@ _mysql() {
         cd $LARADOCK_PATH
         docker-compose up -d $DB_ENGINE
 
-        if [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;") == *"ERROR"* ]] ||
-            [[ $(docker-compose exec $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;") == *"ERROR"* ]]; then
-            if [[ $INSTALL == "y" ]]; then
-                rm -rf ~/.laradock/data/$DB_ENGINE
+        if [[ $(docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;") == *"ERROR"* ]] ||
+            [[ $(docker-compose exec -T $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;") == *"ERROR"* ]]; then
+            if [[ $INSTALL == y* ]]; then
+                read -p "RESET_DATABASE [y/n]? " RESET_DATABASE
+                if [[ RESET_DATABASE == y* ]]; then
+                    rm -rf ~/.laradock/data/$DB_ENGINE
+                fi
                 docker-compose build --no-cache $DB_ENGINE
                 docker-compose up -d $DB_ENGINE
             fi
 
-            SQL="ALTER USER 'root'@'localhost' IDENTIFIED BY '$DB_ROOT_PASSWORD';"
+            SQL+="REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'default'@'localhost';"
+            SQL+="DROP USER IF EXISTS 'default'@'localhost';"
+            SQL+="ALTER USER 'root'@'localhost' IDENTIFIED BY '$DB_ROOT_PASSWORD';"
             SQL+="CREATE DATABASE IF NOT EXISTS $DB_DATABASE COLLATE 'utf8_general_ci';"
-            SQL+="CREATE USER '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';"
+            SQL+="CREATE USER IF NOT EXISTS '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';"
             SQL+="ALTER USER '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';"
             SQL+="GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'localhost';"
             SQL+="FLUSH PRIVILEGES;"
             SQL+=${SQL//localhost/%}
             IFS=';' read -r -a SQL_ARRAY <<<"$SQL"
 
-            if [[ $(docker-compose exec $DB_ENGINE mysql -u root -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                DB_COMPOSE="docker-compose exec $DB_ENGINE mysql -u root -e"
-            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                DB_COMPOSE="docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e"
-            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -proot -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                DB_COMPOSE="docker-compose exec $DB_ENGINE mysql -u root -proot -e"
-            elif [[ $(docker-compose exec $DB_ENGINE mysql -u root -psecret -e "SHOW DATABASES;") != *"ERROR"* ]]; then
-                DB_COMPOSE="docker-compose exec $DB_ENGINE mysql -u root -psecret -e"
-            fi
+            DB_COMPOSE="docker-compose exec -T $DB_ENGINE mysql -u root"
+            $DB_COMPOSE -e 'SHOW DATABASES;' && DB_COMPOSE="$DB_COMPOSE -e"
+            $DB_COMPOSE -p$DB_ROOT_PASSWORD -e 'SHOW DATABASES;' && DB_COMPOSE="$DB_COMPOSE -p$DB_ROOT_PASSWORD -e"
+            $DB_COMPOSE -proot -e 'SHOW DATABASES;' && DB_COMPOSE="$DB_COMPOSE -proot -e"
+            $DB_COMPOSE -psecret -e 'SHOW DATABASES;' && DB_COMPOSE="$DB_COMPOSE -psecret -e"
 
             if [[ ! -z $DB_COMPOSE ]]; then
                 for QUERY in "${SQL_ARRAY[@]}"; do
-                    $DB_COMPOSE "$QUERY;"
+                    echo $($DB_COMPOSE "$QUERY;")
                 done
             else
-                echo -e "Please config db manualy:\n"
+                echo -e "\n\n"
                 for QUERY in "${SQL_ARRAY[@]}"; do
                     echo "$QUERY;"
                 done
-                read OK
+                read -p "Do you run this queries?" OK
             fi
         fi
     fi
 }
 
 _nginx() {
-    if [[ $TARGET != "docker" ]] && [[ $INSTALL == "y" ]]; then
+    if [[ $TARGET != "docker" ]] && [[ $INSTALL == y* ]]; then
         rm -f $LARADOCK_PATH/nginx/sites/default.conf
         wget -N https://raw.githubusercontent.com/alirezamaleky/nginx-config/master/default.conf -P $LARADOCK_PATH/nginx/sites
-        sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/default.conf
+        mv $LARADOCK_PATH/nginx/sites/default.conf $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
+        sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
 
         cd $LARADOCK_PATH
         docker-compose build --no-cache nginx
@@ -268,7 +287,7 @@ _nginx() {
 }
 
 _redis() {
-    if [[ $INSTALL == "y" ]]; then
+    if [[ $INSTALL == y* ]]; then
         sed -i "s|REDIS_PORT=.*|REDIS_PORT=127.0.0.1:6379|" $LARADOCK_PATH/.env
         sed -i "s|bind 127.0.0.1|#bind 127.0.0.1|" $LARADOCK_PATH/redis/redis.conf
         sed -i "s|build: ./redis|build:\n        context: ./redis\n        args:\n            REDIS_PASSWORD: \${REDIS_PASSWORD}|" $LARADOCK_PATH/docker-compose.yml
@@ -309,7 +328,7 @@ _git() {
         echo "laradock" >>$LARAVEL_PATH/.gitignore
     fi
 
-    if [[ $PRODUCTION == "y" ]]; then
+    if [[ $PRODUCTION == y* ]]; then
         cd $LARAVEL_PATH
         git checkout -f master
         git checkout -f .
@@ -321,19 +340,19 @@ _up() {
     cd $LARADOCK_PATH
     docker-compose up -d $CONTAINERS
     if [[ $TARGET == "deploy" ]]; then
-        sudo docker-compose exec -T workspace "bash" /var/www/deploy.sh docker
+        sudo docker-compose exec -T workspace "bash" /var/www/deploy.sh -t docker -p $APP_PATH
     else
-        docker-compose exec workspace bash
+        docker-compose exec -T workspace bash
     fi
 }
 
 _yarn() {
     killall yarn npm
-    if [[ $PRODUCTION == "y" ]]; then
+    if [[ $PRODUCTION == y* ]]; then
         yarn install --production --pure-lockfile --non-interactive &&
             yarn run prod
     else
-        if [[ $INSTALL == "y" ]]; then
+        if [[ $INSTALL == y* ]]; then
             yarn install
         else
             yarn upgrade
@@ -346,17 +365,17 @@ _composer() {
     killall composer
     composer global require hirak/prestissimo
 
-    if [[ $PRODUCTION == "y" ]]; then
+    if [[ $PRODUCTION == y* ]]; then
         composer install --optimize-autoloader --no-dev --no-interaction --prefer-dist
     else
-        if [[ $INSTALL == "y" ]]; then
+        if [[ $INSTALL == y* ]]; then
             composer install
         else
             composer update
         fi
     fi
 
-    if [[ $INSTALL == "y" ]]; then
+    if [[ $INSTALL == y* ]]; then
         composer run-script "post-autoload-dump"
         composer run-script "post-root-package-install"
         composer run-script "post-create-project-cmd"
@@ -364,7 +383,7 @@ _composer() {
 }
 
 _laravel() {
-    if [[ $INSTALL == "y" ]]; then
+    if [[ $INSTALL == y* ]]; then
         php artisan migrate --force --seed
         php artisan storage:link
     else
@@ -372,7 +391,7 @@ _laravel() {
         php artisan queue:restart
     fi
 
-    if [[ $PRODUCTION == "y" ]]; then
+    if [[ $PRODUCTION == y* ]]; then
         php artisan optimize
         php artisan view:clear
         php artisan view:cache
@@ -383,14 +402,14 @@ _laravel() {
 
     php artisan telescope:publish
 
-    if [[ $PRODUCTION == "y" ]]; then
+    if [[ $PRODUCTION == y* ]]; then
         yarn global add html-minifier
         html-minifier --collapse-whitespace --remove-comments --remove-optional-tags --remove-redundant-attributes --remove-script-type-attributes --remove-tag-whitespace --use-short-doctype --minify-css true --minify-js true --input-dir $LARAVEL_PATH/storage/framework/views --output-dir $LARAVEL_PATH/storage/framework/views --file-ext "php"
     fi
 }
 
 _permission() {
-    if [[ $INSTALL == "y" ]]; then
+    if [[ $INSTALL == y* ]]; then
         killall find
         find $LARAVEL_PATH -type f -exec chmod 644 {} \;
         find $LARAVEL_PATH -type d -exec chmod 755 {} \;
@@ -404,12 +423,12 @@ _permission() {
     chown -R laradock:laradock $LARAVEL_PATH
 }
 
+ELAPSED_SEC=$SECONDS
 if [[ $TARGET == "docker" ]]; then
     _yarn
     _composer
     _laravel
     _permission
-
     echo "Deployment takes $((SECONDS - ELAPSED_SEC)) second."
 else
     if [[ ! -z $USER ]]; then
