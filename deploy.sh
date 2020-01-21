@@ -228,11 +228,12 @@ _mysql() {
     fi
 
     if [[ $TARGET == "deploy" ]]; then
+        echo $LARADOCK_PATH
         cd $LARADOCK_PATH
         docker-compose up -d $DB_ENGINE
 
-        $(docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;") &&
-            $(docker-compose exec -T $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;") &&
+        docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;" &&
+            docker-compose exec -T $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;" &&
             DB_STATUS='1'
 
         if [[ $DB_STATUS != '1' ]]; then
@@ -257,21 +258,23 @@ _mysql() {
             IFS=';' read -r -a SQL_ARRAY <<<"$SQL"
 
             DB_COMPOSE="docker-compose exec -T $DB_ENGINE mysql -u root"
-            DB_COMPOSE_CHECK="$DB_COMPOSE -e 'SHOW DATABASES;'"
-            $DB_COMPOSE_CHECK && DB_COMPOSE="$DB_COMPOSE"
-            $DB_COMPOSE_CHECK -p$DB_ROOT_PASSWORD && DB_COMPOSE="$DB_COMPOSE -p$DB_ROOT_PASSWORD"
-            $DB_COMPOSE_CHECK -proot && DB_COMPOSE="$DB_COMPOSE -proot"
-            $DB_COMPOSE_CHECK -psecret && DB_COMPOSE="$DB_COMPOSE -psecret"
+            $DB_COMPOSE -e 'SHOW DATABASES;' && DB_TEMP_PASS=""
+            $DB_COMPOSE -e 'SHOW DATABASES;' -p$DB_ROOT_PASSWORD && DB_TEMP_PASS="$DB_ROOT_PASSWORD"
+            $DB_COMPOSE -e 'SHOW DATABASES;' -proot && DB_TEMP_PASS="root"
+            $DB_COMPOSE -e 'SHOW DATABASES;' -psecret && DB_TEMP_PASS="secret"
 
-            for QUERY in "${SQL_ARRAY[@]}"; do
-                echo -e "\n\n\n\n\n$QUERY"
-                $DB_COMPOSE -e "$QUERY;"
-            done
-
-            $(docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;") &&
-                $(docker-compose exec -T $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;") &&
-                DB_STATUS='1'
-            if [[ $DB_STATUS != '1' ]]; then
+            if [[ ! -z $DB_TEMP_PASS ]]; then
+                for QUERY in "${SQL_ARRAY[@]}"; do
+                    echo $DB_COMPOSE -p$DB_TEMP_PASS -e
+                    $DB_COMPOSE -p$DB_TEMP_PASS -e "$QUERY;"
+                done
+                docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;" &&
+                    docker-compose exec -T $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;" &&
+                    DB_STATUS='1'
+                if [[ $DB_STATUS != '1' ]]; then
+                    _mysql
+                fi
+            else
                 _mysql
             fi
         fi
