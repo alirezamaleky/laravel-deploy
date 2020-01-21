@@ -54,11 +54,6 @@ else
     DB_ENGINE=mysql
 fi
 
-DB_DATABASE=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2)
-DB_USERNAME=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)
-DB_PASSWORD=$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)
-DB_ROOT_PASSWORD=$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)
-REDIS_PASSWORD=$(grep REDIS_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)
 if [[ $INSTALL == y* ]] && [[ $TARGET != "docker" ]]; then
     read -p "DOMAIN: " DOMAIN
     read -p "APP_NAME: " APP_NAME
@@ -87,6 +82,13 @@ if [[ $INSTALL == y* ]] && [[ $TARGET != "docker" ]]; then
     echo "REDIS_PASSWORD=$REDIS_PASSWORD"
     echo "PMA_PORT=$PMA_PORT"
     read -p "Are you saved this informations?" NOTED
+fi
+if [[ $INSTALL != y* ]]; then
+    DB_DATABASE=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2)
+    DB_USERNAME=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)
+    DB_PASSWORD=$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)
+    DB_ROOT_PASSWORD=$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)
+    REDIS_PASSWORD=$(grep REDIS_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)
 fi
 
 _laradock() {
