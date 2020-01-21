@@ -28,6 +28,18 @@ _path() {
 }
 _path
 
+for ((i = 1; i <= $#; i++)); do
+    if [ ${!i} = "-f" ]; then
+        ((i++))
+        if [[ ! -z $(docker container ls -aq) ]]; then
+            docker container stop $(docker container ls -aq)
+            docker container rm -fv $(docker container ls -aq)
+        fi
+        sudo rm -fvr ~/.laradock $LARADOCK_PATH $LARAVEL_PATH/*
+        git checkout -f .
+    fi
+done
+
 if [[ ! -d "$LARADOCK_PATH" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "$LARAVEL_PATH/node_modules" ]]; then
     if [[ -z $INSTALL ]] && [[ $TARGET != "docker" ]] && [[ -f "$LARAVEL_PATH/.env" ]] && [[ -f "$LARADOCK_PATH/.env" ]]; then
         read -p "Is this first install? [y/n] " INSTALL
@@ -38,8 +50,12 @@ fi
 if [[ $INSTALL == y* ]] && [[ $TARGET != "docker" ]]; then
     read -p "Is the project in production? [y/n] " PRODUCTION
 else
-    if [[ $(grep APP_ENV $LARAVEL_PATH/.env | cut -d '=' -f2) == "production" ]]; then
-        PRODUCTION="y"
+    if [[ -f $LARAVEL_PATH/.env ]]; then
+        if [[ $(grep APP_ENV $LARAVEL_PATH/.env | cut -d '=' -f2) == "production" ]]; then
+            PRODUCTION="y"
+        fi
+    elif [[ $TARGET != "docker" ]]; then
+        read -p "Is the project in production? [y/n] " PRODUCTION
     fi
 fi
 
@@ -54,11 +70,13 @@ else
     DB_ENGINE=mysql
 fi
 
-DB_DATABASE=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2)
-DB_USERNAME=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)
-DB_PASSWORD=$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)
-DB_ROOT_PASSWORD=$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)
-REDIS_PASSWORD=$(grep REDIS_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)
+if [[ -f $LARAVEL_PATH/.env ]] && [[ -f $LARADOCK_PATH/.env ]]; then
+    DB_DATABASE=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2)
+    DB_USERNAME=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)
+    DB_PASSWORD=$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)
+    DB_ROOT_PASSWORD=$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)
+    REDIS_PASSWORD=$(grep REDIS_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)
+fi
 if [[ $INSTALL == y* ]] && [[ $TARGET != "docker" ]]; then
     read -p "DOMAIN: " DOMAIN
     read -e -p "APP_NAME: " -i "laravel" APP_NAME
@@ -95,13 +113,13 @@ _laradock() {
         wget -N https://github.com/laradock/laradock/archive/master.zip -P $LARAVEL_PATH &&
             unzip $LARAVEL_PATH/master.zip -d $LARAVEL_PATH &&
             mv $LARAVEL_PATH/laradock-master $LARADOCK_PATH &&
-            rm -f $LARAVEL_PATH/master.zip
+            rm -fv $LARAVEL_PATH/master.zip
         cp $LARADOCK_PATH/env-example $LARADOCK_PATH/.env
     fi
 
     if [[ $PRODUCTION == y* ]] && [[ $TARGET != "docker" ]]; then
-        if ! grep -q "/var/www/$APP_PATH"; then
-            if grep -q "/var/www/artisan"; then
+        if ! grep -q "/var/www/$APP_PATH" $LARADOCK_PATH/workspace/crontab/laradock; then
+            if grep -q "/var/www/artisan" $LARADOCK_PATH/workspace/crontab/laradock; then
                 echo "" >$LARADOCK_PATH/workspace/crontab/laradock
             fi
             echo "* * * * * laradock /usr/bin/php /var/www/$APP_PATH/artisan schedule:run >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
@@ -240,7 +258,7 @@ _mysql() {
             if [[ $INSTALL == y* ]]; then
                 read -p "RESET_DATABASE [y/n]? " RESET_DATABASE
                 if [[ RESET_DATABASE == y* ]]; then
-                    rm -rf ~/.laradock/data/$DB_ENGINE
+                    rm -fvr ~/.laradock/data/$DB_ENGINE
                 fi
                 docker-compose build --no-cache $DB_ENGINE
                 docker-compose up -d $DB_ENGINE
@@ -283,7 +301,7 @@ _mysql() {
 
 _nginx() {
     if [[ $TARGET != "docker" ]] && [[ $INSTALL == y* ]]; then
-        rm -f $LARADOCK_PATH/nginx/sites/default.conf
+        rm -fv $LARADOCK_PATH/nginx/sites/default.conf
         wget -N https://raw.githubusercontent.com/alirezamaleky/nginx-config/master/default.conf -P $LARADOCK_PATH/nginx/sites
         mv $LARADOCK_PATH/nginx/sites/default.conf $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
         sed -i "s|/var/www/public;|/var/www/$APP_PATH/public;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
