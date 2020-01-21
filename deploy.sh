@@ -230,12 +230,11 @@ _mysql() {
         cd $LARADOCK_PATH
         docker-compose up -d $DB_ENGINE
 
-        DB_STATUS='0'
         $(docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;") &&
             $(docker-compose exec -T $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;") &&
             DB_STATUS='1'
 
-        if [[ $DB_STATUS == '0' ]]; then
+        if [[ $DB_STATUS != '1' ]]; then
             if [[ $INSTALL == y* ]]; then
                 read -p "RESET_DATABASE [y/n]? " RESET_DATABASE
                 if [[ RESET_DATABASE == y* ]]; then
