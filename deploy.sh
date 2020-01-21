@@ -230,8 +230,12 @@ _mysql() {
         cd $LARADOCK_PATH
         docker-compose up -d $DB_ENGINE
 
-        if [[ $(docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;") == *"ERROR"* ]] ||
-            [[ $(docker-compose exec -T $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;") == *"ERROR"* ]]; then
+        DB_STATUS='0'
+        $(docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;") &&
+            $(docker-compose exec -T $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;") &&
+            DB_STATUS='1'
+
+        if [[ $DB_STATUS == '0' ]]; then
             if [[ $INSTALL == y* ]]; then
                 read -p "RESET_DATABASE [y/n]? " RESET_DATABASE
                 if [[ RESET_DATABASE == y* ]]; then
@@ -252,11 +256,11 @@ _mysql() {
             SQL+=${SQL//localhost/%}
             IFS=';' read -r -a SQL_ARRAY <<<"$SQL"
 
-            DB_COMPOSE="docker-compose exec -T $DB_ENGINE mysql -u root"
-            $DB_COMPOSE -e 'SHOW DATABASES;' && DB_COMPOSE="$DB_COMPOSE -e"
-            $DB_COMPOSE -p$DB_ROOT_PASSWORD -e 'SHOW DATABASES;' && DB_COMPOSE="$DB_COMPOSE -p$DB_ROOT_PASSWORD -e"
-            $DB_COMPOSE -proot -e 'SHOW DATABASES;' && DB_COMPOSE="$DB_COMPOSE -proot -e"
-            $DB_COMPOSE -psecret -e 'SHOW DATABASES;' && DB_COMPOSE="$DB_COMPOSE -psecret -e"
+            DB_COMPOSE="docker-compose exec -T $DB_ENGINE mysql -u root -e 'SHOW DATABASES;'"
+            $DB_COMPOSE && DB_COMPOSE="$DB_COMPOSE -e"
+            $DB_COMPOSE -p$DB_ROOT_PASSWORD && DB_COMPOSE="$DB_COMPOSE -p$DB_ROOT_PASSWORD -e"
+            $DB_COMPOSE -proot && DB_COMPOSE="$DB_COMPOSE -proot -e"
+            $DB_COMPOSE -psecret && DB_COMPOSE="$DB_COMPOSE -psecret -e"
 
             if [[ ! -z $DB_COMPOSE ]]; then
                 for QUERY in "${SQL_ARRAY[@]}"; do
