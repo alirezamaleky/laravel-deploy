@@ -256,28 +256,21 @@ _mysql() {
             SQL+=${SQL//localhost/%}
             IFS=';' read -r -a SQL_ARRAY <<<"$SQL"
 
-            DB_COMPOSE="docker-compose exec -T $DB_ENGINE mysql -u root -e 'SHOW DATABASES;'"
-            $DB_COMPOSE && DB_COMPOSE="$DB_COMPOSE -e"
-            $DB_COMPOSE -p$DB_ROOT_PASSWORD && DB_COMPOSE="$DB_COMPOSE -p$DB_ROOT_PASSWORD -e"
-            $DB_COMPOSE -proot && DB_COMPOSE="$DB_COMPOSE -proot -e"
-            $DB_COMPOSE -psecret && DB_COMPOSE="$DB_COMPOSE -psecret -e"
+            DB_COMPOSE="docker-compose exec -T $DB_ENGINE mysql -u root"
+            DB_COMPOSE_CHECK="$DB_COMPOSE -e 'SHOW DATABASES;'"
+            $DB_COMPOSE_CHECK && DB_COMPOSE="$DB_COMPOSE"
+            $DB_COMPOSE_CHECK -p$DB_ROOT_PASSWORD && DB_COMPOSE="$DB_COMPOSE -p$DB_ROOT_PASSWORD"
+            $DB_COMPOSE_CHECK -proot && DB_COMPOSE="$DB_COMPOSE -proot"
+            $DB_COMPOSE_CHECK -psecret && DB_COMPOSE="$DB_COMPOSE -psecret"
 
-            if [[ ! -z $DB_COMPOSE ]]; then
-                for QUERY in "${SQL_ARRAY[@]}"; do
-                    $DB_COMPOSE "$QUERY;"
-                done
-            else
-                echo -e "\n\n\n\n\n"
-                for QUERY in "${SQL_ARRAY[@]}"; do
-                    echo "$QUERY;"
-                done
-                read -p "Do you run this queries?" OK
-            fi
+            for QUERY in "${SQL_ARRAY[@]}"; do
+                echo -e "\n\n\n\n\n$QUERY"
+                $DB_COMPOSE -e "$QUERY;"
+            done
 
             $(docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;") &&
                 $(docker-compose exec -T $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;") &&
                 DB_STATUS='1'
-
             if [[ $DB_STATUS != '1' ]]; then
                 _mysql
             fi
