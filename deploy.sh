@@ -32,7 +32,7 @@ if [[ ! -d "$LARADOCK_PATH" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "
     if [[ -z $INSTALL ]] && [[ $TARGET != "docker" ]] && [[ -f "$LARAVEL_PATH/.env" ]] && [[ -f "$LARADOCK_PATH/.env" ]]; then
         read -p "Is this first install? [y/n] " INSTALL
     fi
-    INSTALL=${INSTALL:-y}0
+    INSTALL=${INSTALL:-y}
 fi
 
 if [[ $INSTALL == y* ]] && [[ $TARGET != "docker" ]]; then
