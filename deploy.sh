@@ -251,6 +251,7 @@ _mysql() {
         cd $LARADOCK_PATH
         docker-compose up -d $DB_ENGINE
 
+        DB_STATUS='0'
         docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;" &&
             docker-compose exec -T $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;" &&
             DB_STATUS='1'
@@ -291,6 +292,7 @@ _mysql() {
                 fi
             done
 
+            DB_STATUS='0'
             docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;" &&
                 docker-compose exec -T $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;" &&
                 DB_STATUS='1'
@@ -474,4 +476,3 @@ else
     fi
     echo "Installation takes $((SECONDS - ELAPSED_SEC)) second."
 fi
-
