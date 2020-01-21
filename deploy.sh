@@ -16,11 +16,11 @@ _path() {
     fi
 
     SCRIPT_PATH=$(realpath $0)
-    LARAVEL_PATH=$(dirname $SCRIPT_PATH)
+    LARAVEL_PATH=$(dirname $SCRIPT_PATH)/$APP_PATH
     LARADOCK_PATH=$LARAVEL_PATH/laradock
 
-    if [[ -d "$APP_PATH/public" ]]; then
-        cd $APP_PATH
+    if [[ ! -z $APP_PATH ]] && [[ -d "$LARAVEL_PATH/public" ]]; then
+        cd $LARAVEL_PATH
     else
         unset APP_PATH
         _path
