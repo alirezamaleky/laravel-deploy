@@ -364,7 +364,7 @@ _up() {
     if [[ $TARGET == "deploy" ]]; then
         sudo docker-compose exec -T workspace /var/www/deploy.sh -t docker -p $APP_PATH
     else
-        docker-compose exec -T workspace bash -p $APP_PATH
+        docker-compose exec workspace bash
     fi
 }
 
