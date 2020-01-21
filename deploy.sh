@@ -28,8 +28,8 @@ _path() {
 }
 _path
 
-if [[ ! -d "$LARAVEL_PATH/laradock" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "$LARAVEL_PATH/node_modules" ]]; then
-    if [[ -z $INSTALL ]] && [[ $TARGET != "docker" ]]; then
+if [[ ! -d "$LARADOCK_PATH" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "$LARAVEL_PATH/node_modules" ]]; then
+    if [[ -z $INSTALL ]] && [[ $TARGET != "docker" ]] && [[ -f "$LARAVEL_PATH/.env" ]] && [[ -f "$LARADOCK_PATH/.env" ]]; then
         read -p "Is this first install? [y/n] " INSTALL
     fi
     INSTALL=${INSTALL:-y}
@@ -91,10 +91,10 @@ if [[ $INSTALL == y* ]] && [[ $TARGET != "docker" ]]; then
 fi
 
 _laradock() {
-    if [[ ! -d "$LARAVEL_PATH/laradock" ]]; then
+    if [[ ! -d "$LARADOCK_PATH" ]]; then
         wget -N https://github.com/laradock/laradock/archive/master.zip -P $LARAVEL_PATH &&
             unzip $LARAVEL_PATH/master.zip -d $LARAVEL_PATH &&
-            mv $LARAVEL_PATH/laradock-master $LARAVEL_PATH/laradock &&
+            mv $LARAVEL_PATH/laradock-master $LARADOCK_PATH &&
             rm -f $LARAVEL_PATH/master.zip
         cp $LARADOCK_PATH/env-example $LARADOCK_PATH/.env
     fi
