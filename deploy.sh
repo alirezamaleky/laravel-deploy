@@ -266,8 +266,9 @@ _mysql() {
         IFS=';' read -r -a SQL_ARRAY <<<"$SQL"
 
         INITDB="$LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/$APP_PATH.sql"
-        touch $INITDB
-
+        if [[ ! -f $INITDB ]]; then
+            touch $INITDB
+        fi
         for QUERY in "${SQL_ARRAY[@]}"; do
             if ! grep -q "$QUERY;" $INITDB; then
                 echo "$QUERY;" >>$INITDB
