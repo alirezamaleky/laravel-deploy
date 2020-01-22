@@ -47,7 +47,7 @@ if [[ ! -d "$LARADOCK_PATH" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "
     INSTALL=${INSTALL:-y}
 fi
 
-if [[ $INSTALL == y* ]] && [[ $TARGET != "docker" ]]; then
+if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
     read -p "Is the project in production? [y/n] " PRODUCTION
 else
     if [[ -f $LARAVEL_PATH/.env ]]; then
@@ -60,7 +60,7 @@ else
 fi
 
 CONTAINERS="nginx mariadb phpmyadmin redis"
-# if [[ $PRODUCTION == y* ]]; then
+# if [[ ${PRODUCTION^^} == Y* ]]; then
 #     CONTAINERS+=" mailu"
 # fi
 
@@ -79,7 +79,7 @@ if [[ -f $LARADOCK_PATH/.env ]]; then
     DB_ROOT_PASSWORD=$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)
     REDIS_PASSWORD=$(grep REDIS_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)
 fi
-if [[ $INSTALL == y* ]] && [[ $TARGET != "docker" ]]; then
+if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
     read -p "DOMAIN: " DOMAIN
     read -e -p "APP_NAME: " -i "laravel" APP_NAME
     read -e -p "MAIL_USERNAME: " -i "info@$DOMAIN" MAIL_USERNAME
@@ -119,25 +119,25 @@ _laradock() {
         cp $LARADOCK_PATH/env-example $LARADOCK_PATH/.env
     fi
 
-    if [[ $PRODUCTION == y* ]] && [[ $TARGET != "docker" ]]; then
+    if [[ ${PRODUCTION^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
         if ! grep -q "/var/www/$APP_PATH" $LARADOCK_PATH/workspace/crontab/laradock; then
             if grep -q "/var/www/artisan" $LARADOCK_PATH/workspace/crontab/laradock; then
                 echo "" >$LARADOCK_PATH/workspace/crontab/laradock
             fi
             echo "* * * * * laradock /usr/bin/php /var/www/$APP_PATH/artisan schedule:run >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
             echo "@reboot laradock /usr/bin/php /var/www/$APP_PATH/artisan queue:work --timeout=60 --sleep=3 >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
-            if [[ $INSTALL != y* ]]; then
+            if [[ ${INSTALL^^} != Y* ]]; then
                 docker-compose build --no-cache workspace
                 docker-compose up -d workspace
             fi
         fi
-    elif [[ $PRODUCTION != y* ]] && [[ $INSTALL == y* ]]; then
+    elif [[ ${PRODUCTION^^} != Y* ]] && [[ ${INSTALL^^} == Y* ]]; then
         echo "" >$LARADOCK_PATH/workspace/crontab/laradock
     fi
 }
 
 _env() {
-    if [[ $INSTALL == y* ]]; then
+    if [[ ${INSTALL^^} == Y* ]]; then
         sed -i "s|PHP_FPM_INSTALL_SOAP=.*|PHP_FPM_INSTALL_SOAP=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_MYSQL_CLIENT=.*|WORKSPACE_INSTALL_MYSQL_CLIENT=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_NPM_GULP=.*|WORKSPACE_INSTALL_NPM_GULP=false|" $LARADOCK_PATH/.env
@@ -170,10 +170,10 @@ _env() {
         echo "alias pa='php artisan'" >>$LARADOCK_PATH/workspace/aliases.sh
     fi
 
-    if [[ $INSTALL == y* ]]; then
+    if [[ ${INSTALL^^} == Y* ]]; then
         cp $LARAVEL_PATH/.env.example $LARAVEL_PATH/.env
 
-        if [[ $PRODUCTION == y* ]]; then
+        if [[ ${PRODUCTION^^} == Y* ]]; then
             sed -i "s|APP_ENV=.*|APP_ENV=production|" $LARAVEL_PATH/.env
             sed -i "s|APP_DEBUG=.*|APP_DEBUG=false|" $LARAVEL_PATH/.env
             sed -i "s|MAIL_HOST=.*|MAIL_HOST=$MAIL_HOST|" $LARAVEL_PATH/.env
@@ -206,7 +206,7 @@ _env() {
 }
 
 _crontab() {
-    if [[ $PRODUCTION == y* ]] && [[ $TARGET != "docker" ]]; then
+    if [[ ${PRODUCTION^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
         if ! grep -q "$LARADOCK_PATH && docker-compose up -d" /etc/crontab; then
             sudo echo "@reboot root  cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
         fi
@@ -221,7 +221,7 @@ _backup() {
     if [[ ! -d "$LARAVEL_PATH/storage/app/databases" ]] && [[ $TARGET != "docker" ]]; then
         mkdir -p $LARAVEL_PATH/storage/app/databases
     fi
-    if [[ $TARGET == "deploy" ]] && [[ $INSTALL != y* ]] && [[ $PRODUCTION == y* ]]; then
+    if [[ $TARGET == "deploy" ]] && [[ ${INSTALL^^} != Y* ]] && [[ ${PRODUCTION^^} == Y* ]]; then
         docker-compose exec -T workspace mysqldump \
             --force \
             --skip-lock-tables \
@@ -254,9 +254,9 @@ _mysql() {
             DB_STATUS='1'
 
         if [[ $DB_STATUS != '1' ]]; then
-            if [[ $INSTALL == y* ]]; then
+            if [[ ${INSTALL^^} == Y* ]]; then
                 read -p "RESET_DATABASE [y/n]? " RESET_DATABASE
-                if [[ RESET_DATABASE == y* ]]; then
+                if [[ ${RESET_DATABASE^^} == Y* ]]; then
                     rm -fvr ~/.laradock/data/$DB_ENGINE
                 fi
                 docker-compose build --no-cache $DB_ENGINE
@@ -300,7 +300,7 @@ _mysql() {
 }
 
 _nginx() {
-    if [[ $TARGET != "docker" ]] && [[ $INSTALL == y* ]]; then
+    if [[ $TARGET != "docker" ]] && [[ ${INSTALL^^} == Y* ]]; then
         rm -fv $LARADOCK_PATH/nginx/sites/default.conf
         wget -N https://raw.githubusercontent.com/alirezamaleky/nginx-config/master/default.conf -P $LARADOCK_PATH/nginx/sites
         mv $LARADOCK_PATH/nginx/sites/default.conf $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
@@ -313,7 +313,7 @@ _nginx() {
 }
 
 _redis() {
-    if [[ $INSTALL == y* ]]; then
+    if [[ ${INSTALL^^} == Y* ]]; then
         sed -i "s|REDIS_PORT=.*|REDIS_PORT=127.0.0.1:6379|" $LARADOCK_PATH/.env
         sed -i "s|bind 127.0.0.1|#bind 127.0.0.1|" $LARADOCK_PATH/redis/redis.conf
         sed -i "s|build: ./redis|build:\n        context: ./redis\n        args:\n            REDIS_PASSWORD: \${REDIS_PASSWORD}|" $LARADOCK_PATH/docker-compose.yml
@@ -347,7 +347,7 @@ _php() {
 }
 
 _git() {
-    if [[ $PRODUCTION == y* ]]; then
+    if [[ ${PRODUCTION^^} == Y* ]]; then
         git -C $LARAVEL_PATH checkout -f master
         git -C $LARAVEL_PATH checkout -f .
         git -C $LARAVEL_PATH pull origin master
@@ -365,11 +365,11 @@ _up() {
 
 _yarn() {
     killall yarn npm
-    if [[ $PRODUCTION == y* ]]; then
+    if [[ ${PRODUCTION^^} == Y* ]]; then
         yarn install --production --pure-lockfile --non-interactive &&
             yarn run prod
     else
-        if [[ $INSTALL == y* ]]; then
+        if [[ ${INSTALL^^} == Y* ]]; then
             yarn install
         else
             yarn upgrade
@@ -382,17 +382,17 @@ _composer() {
     killall composer
     composer global require hirak/prestissimo
 
-    if [[ $PRODUCTION == y* ]]; then
+    if [[ ${PRODUCTION^^} == Y* ]]; then
         composer install --optimize-autoloader --no-dev --no-interaction --prefer-dist
     else
-        if [[ $INSTALL == y* ]]; then
+        if [[ ${INSTALL^^} == Y* ]]; then
             composer install
         else
             composer update
         fi
     fi
 
-    if [[ $INSTALL == y* ]]; then
+    if [[ ${INSTALL^^} == Y* ]]; then
         composer run-script "post-autoload-dump"
         composer run-script "post-root-package-install"
         composer run-script "post-create-project-cmd"
@@ -400,7 +400,7 @@ _composer() {
 }
 
 _laravel() {
-    if [[ $INSTALL == y* ]]; then
+    if [[ ${INSTALL^^} == Y* ]]; then
         php artisan migrate --force --seed
         php artisan storage:link
     else
@@ -408,7 +408,7 @@ _laravel() {
         php artisan queue:restart
     fi
 
-    if [[ $PRODUCTION == y* ]]; then
+    if [[ ${PRODUCTION^^} == Y* ]]; then
         php artisan optimize
         php artisan view:clear
         php artisan view:cache
@@ -419,14 +419,14 @@ _laravel() {
 
     php artisan telescope:publish
 
-    if [[ $PRODUCTION == y* ]]; then
+    if [[ ${PRODUCTION^^} == Y* ]]; then
         yarn global add html-minifier
         html-minifier --collapse-whitespace --remove-comments --remove-optional-tags --remove-redundant-attributes --remove-script-type-attributes --remove-tag-whitespace --use-short-doctype --minify-css true --minify-js true --input-dir $LARAVEL_PATH/storage/framework/views --output-dir $LARAVEL_PATH/storage/framework/views --file-ext "php"
     fi
 }
 
 _permission() {
-    if [[ $INSTALL == y* ]]; then
+    if [[ ${INSTALL^^} == Y* ]]; then
         killall find
         find $LARAVEL_PATH -type f -exec chmod 644 {} \;
         find $LARAVEL_PATH -type d -exec chmod 755 {} \;
