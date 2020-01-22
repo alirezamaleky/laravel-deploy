@@ -19,9 +19,7 @@ _path() {
     LARAVEL_PATH=$(dirname $SCRIPT_PATH)/$APP_PATH
     LARADOCK_PATH=$(dirname $SCRIPT_PATH)/laradock
 
-    if [[ ! -z $APP_PATH ]] && [[ -d "$LARAVEL_PATH/public" ]]; then
-        cd $LARAVEL_PATH
-    else
+    if [[ -z $APP_PATH ]] || [[ ! -d "$LARAVEL_PATH/public" ]]; then
         unset APP_PATH
         _path
     fi
@@ -36,7 +34,8 @@ for ((i = 1; i <= $#; i++)); do
             docker container rm -fv $(docker container ls -aq)
             docker system prune -f --volumes
         fi
-        sudo rm -fvr ~/.laradock $LARADOCK_PATH $LARAVEL_PATH/*
+        sudo rm -fvr ~/.laradock $LARADOCK_PATH
+        git clean -fxd
         git checkout -f .
     fi
 done
@@ -128,7 +127,6 @@ _laradock() {
             echo "* * * * * laradock /usr/bin/php /var/www/$APP_PATH/artisan schedule:run >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
             echo "@reboot laradock /usr/bin/php /var/www/$APP_PATH/artisan queue:work --timeout=60 --sleep=3 >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
             if [[ $INSTALL != y* ]]; then
-                cd $LARADOCK_PATH
                 docker-compose build --no-cache workspace
                 docker-compose up -d workspace
             fi
@@ -224,7 +222,6 @@ _backup() {
         mkdir -p $LARAVEL_PATH/storage/app/databases
     fi
     if [[ $TARGET == "deploy" ]] && [[ $INSTALL != y* ]] && [[ $PRODUCTION == y* ]]; then
-        cd $LARADOCK_PATH
         docker-compose exec -T workspace mysqldump \
             --force \
             --skip-lock-tables \
@@ -250,7 +247,6 @@ _mysql() {
 
     if [[ $TARGET == "deploy" ]]; then
         echo $LARADOCK_PATH
-        cd $LARADOCK_PATH
         docker-compose up -d $DB_ENGINE
 
         docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;" &&
@@ -311,7 +307,6 @@ _nginx() {
         sed -i "s|/var/www/public;|/var/www/$APP_PATH/public;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
         sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
 
-        cd $LARADOCK_PATH
         docker-compose build --no-cache nginx
         docker-compose up -d nginx
     fi
@@ -357,11 +352,11 @@ _git() {
         git checkout -f master
         git checkout -f .
         git pull origin master
+        cd $LARADOCK_PATH
     fi
 }
 
 _up() {
-    cd $LARADOCK_PATH
     docker-compose up -d $CONTAINERS
     if [[ $TARGET == "deploy" ]]; then
         sudo docker-compose exec -T workspace /var/www/deploy.sh -t docker -p $APP_PATH
@@ -449,6 +444,7 @@ _permission() {
 
 ELAPSED_SEC=$SECONDS
 if [[ $TARGET == "docker" ]]; then
+    cd $LARAVEL_PATH
     _yarn
     _composer
     _laravel
@@ -456,6 +452,7 @@ if [[ $TARGET == "docker" ]]; then
     echo "Deployment takes $((SECONDS - ELAPSED_SEC)) second."
 else
     if [[ ! -z $USER ]]; then
+        cd $LARADOCK_PATH
         _laradock
         _env
         _crontab
