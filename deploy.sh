@@ -65,7 +65,9 @@ _env() {
     #     CONTAINERS+=" mailu"
     # fi
 
-    read -p "RESET_DATABASE [y/n]? " RESET_DATABASE
+    if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
+        read -p "RESET_DATABASE [y/n]? " RESET_DATABASE
+    fi
     if [[ $CONTAINERS == *"mariadb"* ]]; then
         DB_ENGINE=mariadb
     else
