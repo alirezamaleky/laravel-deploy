@@ -28,13 +28,19 @@ _path
 
 if [[ "$*" == *-f* ]] || [[ "$*" == *--format* ]]; then
     if [[ $TARGET != "docker" ]]; then
-        if [[ ! -z $(docker container ls -aq) ]]; then
-            docker container stop $(docker container ls -aq)
-            docker container rm -fv $(docker container ls -aq)
-        fi
-        docker system prune -f --volumes
+        FORMAT_ALL="y"
 
-        sudo rm -fvr ~/.laradock $LARADOCK_PATH
+        docker container stop $(docker container ls -aq)
+
+        read -p "RESET_LARADOCK [y/n]? " RESET_LARADOCK
+        if [[ ${RESET_LARADOCK^^} == Y* ]]; then
+            if [[ ! -z $(docker container ls -aq) ]]; then
+                docker container rm -fv $(docker container ls -aq)
+            fi
+            docker system prune -f --volumes
+            sudo rm -fvr ~/.laradock $LARADOCK_PATH
+        fi
+
         git -C $LARAVEL_PATH clean -fxd
         git -C $LARAVEL_PATH checkout -f .
     fi
@@ -65,7 +71,7 @@ _env() {
     #     CONTAINERS+=" mailu"
     # fi
 
-    if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
+    if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]] && [[ ${FORMAT_ALL^^} != Y* ]]; then
         read -p "RESET_DATABASE [y/n]? " RESET_DATABASE
     fi
     if [[ $CONTAINERS == *"mariadb"* ]]; then
@@ -249,15 +255,23 @@ _backup() {
 }
 
 _mysql() {
-    if [[ $TARGET == "deploy" ]]; then
+    if ! eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'SHOW DATABASES;'"; then
+        DB_WAITING="y"
+        sleep 5
+        _mysql
+    else
+        unset DB_WAITING
+        eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'source /docker-entrypoint-initdb.d/$APP_NAME.sql;'"
+    fi
+
+    if [[ $TARGET == "deploy" ]] && [[ ${DB_WAITING^^} != Y* ]]; then
         if ! grep -q "max_allowed_packet=16M" $LARADOCK_PATH/$DB_ENGINE/my.cnf; then
             echo "" >$LARADOCK_PATH/$DB_ENGINE/my.cnf
             echo "[mysqld]" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
             echo "max_allowed_packet=16M" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
         fi
 
-        SQL="REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'default'@'%';"
-        SQL+="DROP USER IF EXISTS 'default'@'%';"
+        SQL="DROP USER IF EXISTS 'default'@'%';"
         SQL+="CREATE USER IF NOT EXISTS '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';"
         SQL+="ALTER USER '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';"
         SQL+="CREATE DATABASE IF NOT EXISTS $DB_DATABASE COLLATE 'utf8_general_ci';"
