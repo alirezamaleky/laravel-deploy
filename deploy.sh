@@ -116,23 +116,9 @@ _laradock() {
             unzip $LARAVEL_PATH/master.zip -d $LARAVEL_PATH &&
             mv $LARAVEL_PATH/laradock-master $LARADOCK_PATH &&
             rm -fv $LARAVEL_PATH/master.zip
-        cp $LARADOCK_PATH/env-example $LARADOCK_PATH/.env
     fi
-
-    if [[ ${PRODUCTION^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
-        if ! grep -q "/var/www/$APP_PATH" $LARADOCK_PATH/workspace/crontab/laradock; then
-            if grep -q "/var/www/artisan" $LARADOCK_PATH/workspace/crontab/laradock; then
-                echo "" >$LARADOCK_PATH/workspace/crontab/laradock
-            fi
-            echo "* * * * * laradock /usr/bin/php /var/www/$APP_PATH/artisan schedule:run >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
-            echo "@reboot laradock /usr/bin/php /var/www/$APP_PATH/artisan queue:work --timeout=60 --sleep=3 >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
-            if [[ ${INSTALL^^} != Y* ]]; then
-                docker-compose build --no-cache workspace
-                docker-compose up -d workspace
-            fi
-        fi
-    elif [[ ${PRODUCTION^^} != Y* ]] && [[ ${INSTALL^^} == Y* ]]; then
-        echo "" >$LARADOCK_PATH/workspace/crontab/laradock
+    if [[ ! -f "$LARADOCK_PATH/.env" ]]; then
+        cp $LARADOCK_PATH/env-example $LARADOCK_PATH/.env
     fi
 }
 
@@ -207,8 +193,24 @@ _env() {
 
 _crontab() {
     if [[ ${PRODUCTION^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
-        if ! grep -q "$LARADOCK_PATH && docker-compose up -d" /etc/crontab; then
-            sudo echo "@reboot root  cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
+        if ! grep -q "/var/www/$APP_PATH" $LARADOCK_PATH/workspace/crontab/laradock; then
+            if grep -q "/var/www/artisan" $LARADOCK_PATH/workspace/crontab/laradock; then
+                echo "" >$LARADOCK_PATH/workspace/crontab/laradock
+            fi
+            echo "* * * * * laradock /usr/bin/php /var/www/$APP_PATH/artisan schedule:run >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
+            echo "@reboot laradock /usr/bin/php /var/www/$APP_PATH/artisan queue:work --timeout=60 --sleep=3 >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
+            if [[ ${INSTALL^^} != Y* ]]; then
+                docker-compose build --no-cache workspace
+                docker-compose up -d workspace
+            fi
+        fi
+    elif [[ ${PRODUCTION^^} != Y* ]] && [[ ${INSTALL^^} == Y* ]]; then
+        echo "" >$LARADOCK_PATH/workspace/crontab/laradock
+    fi
+
+    if [[ ${PRODUCTION^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
+        if ! grep -q "cd $LARADOCK_PATH; docker-compose up" /etc/crontab; then
+            sudo echo "@reboot root cd $LARADOCK_PATH; docker-compose up -d $CONTAINERS" >>/etc/crontab
         fi
 
         if ! grep -q "$SCRIPT_PATH -t deploy -p $APP_PATH" /etc/crontab; then
@@ -251,7 +253,7 @@ _mysql() {
         if [[ ${INSTALL^^} == Y* ]]; then
             read -p "RESET_DATABASE [y/n]? " RESET_DATABASE
             if [[ ${RESET_DATABASE^^} == Y* ]]; then
-                rm -fvr ~/.laradock/data/$DB_ENGINE
+                sudo rm -fvr ~/.laradock/data/$DB_ENGINE
             fi
             docker-compose build --no-cache $DB_ENGINE
             docker-compose up -d $DB_ENGINE
@@ -275,17 +277,17 @@ _mysql() {
         IFS=';' read -r -a SQL_ARRAY <<<"$SQL"
 
         DB_COMPOSE="docker-compose exec -T $DB_ENGINE mysql -u root"
-        $DB_COMPOSE -e "SHOW DATABASES;" -p$DB_ROOT_PASSWORD && DB_TEMP_PASS="$DB_ROOT_PASSWORD"
-        $DB_COMPOSE -e "SHOW DATABASES;" -psecret && DB_TEMP_PASS="secret"
-        $DB_COMPOSE -e "SHOW DATABASES;" -proot && DB_TEMP_PASS="root"
-        $DB_COMPOSE -e "SHOW DATABASES;" && DB_TEMP_PASS=""
+        eval $DB_COMPOSE -e "SHOW DATABASES;" -p$DB_ROOT_PASSWORD && DB_TEMP_PASS="$DB_ROOT_PASSWORD"
+        eval $DB_COMPOSE -e "SHOW DATABASES;" -psecret && DB_TEMP_PASS="secret"
+        eval $DB_COMPOSE -e "SHOW DATABASES;" -proot && DB_TEMP_PASS="root"
+        eval $DB_COMPOSE -e "SHOW DATABASES;" && DB_TEMP_PASS=""
 
         for QUERY in "${SQL_ARRAY[@]}"; do
             echo $QUERY
             if [[ -z $DB_TEMP_PASS ]]; then
-                $DB_COMPOSE -e "$QUERY;"
+                eval $DB_COMPOSE -e "$QUERY;"
             else
-                $DB_COMPOSE -p$DB_TEMP_PASS -e "$QUERY;"
+                eval $DB_COMPOSE -p$DB_TEMP_PASS -e "$QUERY;"
             fi
         done
 
@@ -448,7 +450,8 @@ if [[ $TARGET == "docker" ]]; then
     _permission
     echo "Deployment takes $((SECONDS - ELAPSED_SEC)) second."
 else
-    if [[ ! -z $USER ]]; then
+    git --version && docker --version && docker-compose --version && READY="y"
+    if [[ ${READY^^} == Y* ]] && [[ ! -z $USER ]]; then
         cd $LARADOCK_PATH
         _laradock
         _env
