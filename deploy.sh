@@ -254,15 +254,6 @@ _backup() {
 }
 
 _mysql() {
-    if ! eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'SHOW DATABASES;'"; then
-        DB_WAITING="y"
-        sleep 5
-        _mysql
-    else
-        unset DB_WAITING
-        eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'source /docker-entrypoint-initdb.d/$APP_NAME.sql;'"
-    fi
-
     if [[ $TARGET == "deploy" ]] && [[ ${DB_WAITING^^} != Y* ]]; then
         if ! grep -q "max_allowed_packet=16M" $LARADOCK_PATH/$DB_ENGINE/my.cnf; then
             echo "" >$LARADOCK_PATH/$DB_ENGINE/my.cnf
@@ -293,6 +284,15 @@ _mysql() {
         fi
         docker-compose build --no-cache $DB_ENGINE
         docker-compose up -d $DB_ENGINE
+    fi
+
+    if ! eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'SHOW DATABASES;'"; then
+        DB_WAITING="y"
+        sleep 5
+        _mysql
+    else
+        unset DB_WAITING
+        eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'source /docker-entrypoint-initdb.d/$APP_NAME.sql;'"
     fi
 }
 
