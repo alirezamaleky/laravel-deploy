@@ -28,11 +28,10 @@ _path
 
 if [[ "$*" == *-f* ]] || [[ "$*" == *--format* ]]; then
     if [[ $TARGET != "docker" ]]; then
-        FORMAT_ALL="y"
-
-        docker container stop $(docker container ls -aq)
+        RESET_WORKSPACE="y"
 
         read -p "RESET_LARADOCK [y/n]? " RESET_LARADOCK
+        docker container stop $(docker container ls -aq)
         if [[ ${RESET_LARADOCK^^} == Y* ]]; then
             if [[ ! -z $(docker container ls -aq) ]]; then
                 docker container rm -fv $(docker container ls -aq)
@@ -71,7 +70,7 @@ _env() {
     #     CONTAINERS+=" mailu"
     # fi
 
-    if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]] && [[ ${FORMAT_ALL^^} != Y* ]]; then
+    if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]] && [[ ${RESET_WORKSPACE^^} != Y* ]]; then
         read -p "RESET_DATABASE [y/n]? " RESET_DATABASE
     fi
     if [[ $CONTAINERS == *"mariadb"* ]]; then
