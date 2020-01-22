@@ -51,7 +51,7 @@ if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
     read -p "Is the project in production? [y/n] " PRODUCTION
 else
     if [[ -f $LARAVEL_PATH/.env ]]; then
-        if [[ $(grep APP_ENV $LARAVEL_PATH/.env | cut -d '=' -f2) == "production" ]]; then
+        if [[ $(grep APP_ENV $LARAVEL_PATH/.env | cut -d "=" -f2) == "production" ]]; then
             PRODUCTION="y"
         fi
     elif [[ $TARGET != "docker" ]]; then
@@ -71,13 +71,13 @@ else
 fi
 
 if [[ -f $LARAVEL_PATH/.env ]]; then
-    DB_DATABASE=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d '=' -f2)
-    DB_USERNAME=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d '=' -f2)
-    DB_PASSWORD=$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d '=' -f2)
+    DB_DATABASE=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d "=" -f2)
+    DB_USERNAME=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d "=" -f2)
+    DB_PASSWORD=$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d "=" -f2)
 fi
 if [[ -f $LARADOCK_PATH/.env ]]; then
-    DB_ROOT_PASSWORD=$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)
-    REDIS_PASSWORD=$(grep REDIS_PASSWORD $LARADOCK_PATH/.env | cut -d '=' -f2)
+    DB_ROOT_PASSWORD=$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d "=" -f2)
+    REDIS_PASSWORD=$(grep REDIS_PASSWORD $LARADOCK_PATH/.env | cut -d "=" -f2)
 fi
 if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
     read -p "DOMAIN: " DOMAIN
@@ -226,7 +226,7 @@ _backup() {
             --force \
             --skip-lock-tables \
             --host=$DB_ENGINE \
-            --port=$(grep DB_PORT $LARAVEL_PATH/.env | cut -d '=' -f2) \
+            --port=$(grep DB_PORT $LARAVEL_PATH/.env | cut -d "=" -f2) \
             -p$DB_PASSWORD \
             --user=$DB_USERNAME \
             --databases $DB_DATABASE \
@@ -234,7 +234,7 @@ _backup() {
             --ignore-table=$DB_DATABASE.telescope_entries \
             --ignore-table=$DB_DATABASE.telescope_entries_tags \
             --ignore-table=$DB_DATABASE.telescope_monitoring \
-            --result-file=./storage/app/databases/$(date '+%y-%m-%d_%H:%M').sql
+            --result-file=./storage/app/databases/$(date "+%y-%m-%d_%H:%M").sql
     fi
 }
 
@@ -246,55 +246,54 @@ _mysql() {
     fi
 
     if [[ $TARGET == "deploy" ]]; then
-        echo $LARADOCK_PATH
         docker-compose up -d $DB_ENGINE
 
+        if [[ ${INSTALL^^} == Y* ]]; then
+            read -p "RESET_DATABASE [y/n]? " RESET_DATABASE
+            if [[ ${RESET_DATABASE^^} == Y* ]]; then
+                rm -fvr ~/.laradock/data/$DB_ENGINE
+            fi
+            docker-compose build --no-cache $DB_ENGINE
+            docker-compose up -d $DB_ENGINE
+        fi
+
+        SQL+="ALTER USER 'root'@'%' IDENTIFIED BY '$DB_ROOT_PASSWORD';"
+        SQL+="ALTER USER 'root'@'localhost' IDENTIFIED BY '$DB_ROOT_PASSWORD';"
+
+        SQL+="REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'default'@'localhost';"
+        SQL+="DROP USER IF EXISTS 'default'@'localhost';"
+
+        SQL+="CREATE USER IF NOT EXISTS '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';"
+        SQL+="ALTER USER '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';"
+
+        SQL+="CREATE DATABASE IF NOT EXISTS $DB_DATABASE COLLATE 'utf8_general_ci';"
+        SQL+="GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'localhost';"
+        SQL+="REVOKE ALL ON $DB_DATABASE.* FROM 'root'@'localhost';"
+        SQL+="FLUSH PRIVILEGES;"
+
+        SQL+=${SQL//localhost/%}
+        IFS=';' read -r -a SQL_ARRAY <<<"$SQL"
+
+        DB_COMPOSE="docker-compose exec -T $DB_ENGINE mysql -u root"
+        $DB_COMPOSE -e "SHOW DATABASES;" -p$DB_ROOT_PASSWORD && DB_TEMP_PASS="$DB_ROOT_PASSWORD"
+        $DB_COMPOSE -e "SHOW DATABASES;" -psecret && DB_TEMP_PASS="secret"
+        $DB_COMPOSE -e "SHOW DATABASES;" -proot && DB_TEMP_PASS="root"
+        $DB_COMPOSE -e "SHOW DATABASES;" && DB_TEMP_PASS=""
+
+        for QUERY in "${SQL_ARRAY[@]}"; do
+            echo $QUERY
+            if [[ -z $DB_TEMP_PASS ]]; then
+                $DB_COMPOSE -e "$QUERY;"
+            else
+                $DB_COMPOSE -p$DB_TEMP_PASS -e "$QUERY;"
+            fi
+        done
+
         docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;" &&
-            docker-compose exec -T $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;" &&
-            DB_STATUS='1'
-
-        if [[ $DB_STATUS != '1' ]]; then
-            if [[ ${INSTALL^^} == Y* ]]; then
-                read -p "RESET_DATABASE [y/n]? " RESET_DATABASE
-                if [[ ${RESET_DATABASE^^} == Y* ]]; then
-                    rm -fvr ~/.laradock/data/$DB_ENGINE
-                fi
-                docker-compose build --no-cache $DB_ENGINE
-                docker-compose up -d $DB_ENGINE
-            fi
-
-            SQL+="REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'default'@'localhost';"
-            SQL+="DROP USER IF EXISTS 'default'@'localhost';"
-            SQL+="ALTER USER 'root'@'localhost' IDENTIFIED BY '$DB_ROOT_PASSWORD';"
-            SQL+="CREATE DATABASE IF NOT EXISTS $DB_DATABASE COLLATE 'utf8_general_ci';"
-            SQL+="CREATE USER IF NOT EXISTS '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';"
-            SQL+="ALTER USER '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';"
-            SQL+="GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'localhost';"
-            SQL+="FLUSH PRIVILEGES;"
-            SQL+=${SQL//localhost/%}
-            IFS=';' read -r -a SQL_ARRAY <<<"$SQL"
-
-            DB_COMPOSE="docker-compose exec -T $DB_ENGINE mysql -u root"
-            $DB_COMPOSE -e 'SHOW DATABASES;' && DB_TEMP_PASS=""
-            $DB_COMPOSE -e 'SHOW DATABASES;' -p$DB_ROOT_PASSWORD && DB_TEMP_PASS="$DB_ROOT_PASSWORD"
-            $DB_COMPOSE -e 'SHOW DATABASES;' -proot && DB_TEMP_PASS="root"
-            $DB_COMPOSE -e 'SHOW DATABASES;' -psecret && DB_TEMP_PASS="secret"
-
-            for QUERY in "${SQL_ARRAY[@]}"; do
-                echo $QUERY
-                if [[ -z $DB_TEMP_PASS ]]; then
-                    $DB_COMPOSE -e "$QUERY;"
-                else
-                    $DB_COMPOSE -p$DB_TEMP_PASS -e "$QUERY;"
-                fi
-            done
-
-            docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;" &&
-                docker-compose exec -T $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW DATABASES;" &&
-                DB_STATUS='1'
-            if [[ $DB_STATUS != '1' ]]; then
-                _mysql
-            fi
+            docker-compose exec -T $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW TABLES FROM $DB_DATABASE;" &&
+            DB_STATUS="1"
+        if [[ $DB_STATUS != "1" ]]; then
+            _mysql
         fi
     fi
 }
