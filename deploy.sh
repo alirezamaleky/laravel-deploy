@@ -1,10 +1,10 @@
 #!/bin/bash
 
 for ((i = 1; i <= $#; i++)); do
-    if [ ${!i} = "-p" ]; then
+    if [[ ${!i} == "-p" ]] || [[ ${!i} == "--path" ]]; then
         ((i++))
         APP_PATH=${!i}
-    elif [ ${!i} = "-t" ]; then
+    elif [[ ${!i} = "-t" ]] || [[ ${!i} = "--target" ]]; then
         ((i++))
         TARGET=${!i}
     fi
@@ -26,19 +26,19 @@ _path() {
 }
 _path
 
-for ((i = 1; i <= $#; i++)); do
-    if [ ${!i} = "-f" ]; then
-        ((i++))
+if [[ "$*" == *-f* ]] || [[ "$*" == *--format* ]]; then
+    if [[ $TARGET != "docker" ]]; then
         if [[ ! -z $(docker container ls -aq) ]]; then
             docker container stop $(docker container ls -aq)
             docker container rm -fv $(docker container ls -aq)
-            docker system prune -f --volumes
         fi
+        docker system prune -f --volumes
+
         sudo rm -fvr ~/.laradock $LARADOCK_PATH
-        git clean -fxd
-        git checkout -f .
+        git -C $LARAVEL_PATH clean -fxd
+        git -C $LARAVEL_PATH checkout -f .
     fi
-done
+fi
 
 if [[ ! -d "$LARADOCK_PATH" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "$LARAVEL_PATH/node_modules" ]]; then
     if [[ -z $INSTALL ]] && [[ $TARGET != "docker" ]] && [[ -f "$LARAVEL_PATH/.env" ]] && [[ -f "$LARADOCK_PATH/.env" ]]; then
@@ -348,11 +348,9 @@ _php() {
 
 _git() {
     if [[ $PRODUCTION == y* ]]; then
-        cd $LARAVEL_PATH
-        git checkout -f master
-        git checkout -f .
-        git pull origin master
-        cd $LARADOCK_PATH
+        git -C $LARAVEL_PATH checkout -f master
+        git -C $LARAVEL_PATH checkout -f .
+        git -C $LARAVEL_PATH pull origin master
     fi
 }
 
