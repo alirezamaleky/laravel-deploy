@@ -127,6 +127,7 @@ _laradock() {
             mv $LARAVEL_PATH/laradock-master $LARADOCK_PATH &&
             rm -fv $LARAVEL_PATH/master.zip
     fi
+    cd $LARADOCK_PATH
 }
 
 _setenv() {
@@ -222,8 +223,8 @@ _crontab() {
     fi
 
     if [[ ${PRODUCTION^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
-        if ! grep -q "cd $LARADOCK_PATH; docker-compose up" /etc/crontab; then
-            sudo echo "@reboot root cd $LARADOCK_PATH; docker-compose up -d $CONTAINERS" >>/etc/crontab
+        if ! grep -q "cd $LARADOCK_PATH && docker-compose up" /etc/crontab; then
+            sudo echo "@reboot root cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
         fi
 
         if ! grep -q "$SCRIPT_PATH -t deploy -p $APP_PATH" /etc/crontab; then
@@ -445,7 +446,6 @@ else
     git --version && docker --version && docker-compose --version && READY="y"
     if [[ ${READY^^} == Y* ]] && [[ ! -z $USER ]]; then
         _laradock
-        cd $LARADOCK_PATH
         _setenv
         _crontab
         _backup
