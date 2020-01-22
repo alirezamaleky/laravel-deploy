@@ -40,75 +40,78 @@ if [[ "$*" == *-f* ]] || [[ "$*" == *--format* ]]; then
     fi
 fi
 
-if [[ ! -d "$LARADOCK_PATH" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "$LARAVEL_PATH/node_modules" ]]; then
-    if [[ -z $INSTALL ]] && [[ $TARGET != "docker" ]] && [[ -f "$LARAVEL_PATH/.env" ]] && [[ -f "$LARADOCK_PATH/.env" ]]; then
-        read -p "Is this first install? [y/n] " INSTALL
-    fi
-    INSTALL=${INSTALL:-y}
-fi
-
-if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
-    read -p "Is the project in production? [y/n] " PRODUCTION
-else
-    if [[ -f $LARAVEL_PATH/.env ]]; then
-        if [[ $(grep APP_ENV $LARAVEL_PATH/.env | cut -d "=" -f2) == "production" ]]; then
-            PRODUCTION="y"
+_env() {
+    if [[ ! -d "$LARADOCK_PATH" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "$LARAVEL_PATH/node_modules" ]]; then
+        if [[ -z $INSTALL ]] && [[ $TARGET != "docker" ]] && [[ -f "$LARAVEL_PATH/.env" ]] && [[ -f "$LARADOCK_PATH/.env" ]]; then
+            read -p "Is this first install? [y/n] " INSTALL
         fi
-    elif [[ $TARGET != "docker" ]]; then
+        INSTALL=${INSTALL:-y}
+    fi
+
+    if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
         read -p "Is the project in production? [y/n] " PRODUCTION
-    fi
-fi
-
-CONTAINERS="nginx mariadb phpmyadmin redis"
-# if [[ ${PRODUCTION^^} == Y* ]]; then
-#     CONTAINERS+=" mailu"
-# fi
-
-if [[ $CONTAINERS == *"mariadb"* ]]; then
-    DB_ENGINE=mariadb
-else
-    DB_ENGINE=mysql
-fi
-
-if [[ -f $LARAVEL_PATH/.env ]]; then
-    DB_DATABASE=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d "=" -f2)
-    DB_USERNAME=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d "=" -f2)
-    DB_PASSWORD=$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d "=" -f2)
-fi
-if [[ -f $LARADOCK_PATH/.env ]]; then
-    DB_ROOT_PASSWORD=$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d "=" -f2)
-    REDIS_PASSWORD=$(grep REDIS_PASSWORD $LARADOCK_PATH/.env | cut -d "=" -f2)
-fi
-if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
-    read -p "DOMAIN: " DOMAIN
-    read -e -p "APP_NAME: " -i "laravel" APP_NAME
-    read -e -p "MAIL_USERNAME: " -i "info@$DOMAIN" MAIL_USERNAME
-    read -e -p "MAIL_ENCRYPTION: " -i "tls" MAIL_ENCRYPTION
-    read -e -p "PMA_PORT: " -i "8001" PMA_PORT
-    # read -p "MAILU_RECAPTCHA_PUBLIC_KEY: " MAILU_RECAPTCHA_PUBLIC_KEY
-    # read -p "MAILU_RECAPTCHA_PRIVATE_KEY: " MAILU_RECAPTCHA_PRIVATE_KEY
-
-    DB_DATABASE="${APP_PATH}_db"
-    DB_USERNAME="${APP_PATH}_user"
-    DB_PASSWORD=$(openssl rand -base64 15)
-    MAIL_HOST="mail.$DOMAIN"
-    MAIL_PASSWORD=$(openssl rand -base64 15)
-    if [[ ${#DB_ROOT_PASSWORD} < 15 ]]; then
-        DB_ROOT_PASSWORD=$(openssl rand -base64 15)
-    fi
-    if [[ ${#REDIS_PASSWORD} < 15 ]]; then
-        REDIS_PASSWORD=$(openssl rand -base64 15)
+    else
+        if [[ -f $LARAVEL_PATH/.env ]]; then
+            if [[ $(grep APP_ENV $LARAVEL_PATH/.env | cut -d "=" -f2) == "production" ]]; then
+                PRODUCTION="y"
+            fi
+        elif [[ $TARGET != "docker" ]]; then
+            read -p "Is the project in production? [y/n] " PRODUCTION
+        fi
     fi
 
-    echo -e "\n\n\n\n\n"
-    echo "DB_DATABASE=$DB_DATABASE"
-    echo "DB_USERNAME=$DB_USERNAME"
-    echo "DB_PASSWORD=$DB_PASSWORD"
-    echo "DB_ROOT_PASSWORD=$DB_ROOT_PASSWORD"
-    echo "REDIS_PASSWORD=$REDIS_PASSWORD"
-    echo "PMA_PORT=$PMA_PORT"
-    read -p "Are you saved this informations?" OK
-fi
+    CONTAINERS="nginx mariadb phpmyadmin redis"
+    # if [[ ${PRODUCTION^^} == Y* ]]; then
+    #     CONTAINERS+=" mailu"
+    # fi
+
+    read -p "RESET_DATABASE [y/n]? " RESET_DATABASE
+    if [[ $CONTAINERS == *"mariadb"* ]]; then
+        DB_ENGINE=mariadb
+    else
+        DB_ENGINE=mysql
+    fi
+
+    if [[ -f $LARAVEL_PATH/.env ]]; then
+        DB_DATABASE=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d "=" -f2)
+        DB_USERNAME=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d "=" -f2)
+        DB_PASSWORD=$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d "=" -f2)
+    fi
+    if [[ -f $LARADOCK_PATH/.env ]]; then
+        DB_ROOT_PASSWORD=$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d "=" -f2)
+        REDIS_PASSWORD=$(grep REDIS_PASSWORD $LARADOCK_PATH/.env | cut -d "=" -f2)
+    fi
+    if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
+        read -p "DOMAIN: " DOMAIN
+        read -e -p "APP_NAME: " -i "laravel" APP_NAME
+        read -e -p "MAIL_USERNAME: " -i "info@$DOMAIN" MAIL_USERNAME
+        read -e -p "MAIL_ENCRYPTION: " -i "tls" MAIL_ENCRYPTION
+        read -e -p "PMA_PORT: " -i "8001" PMA_PORT
+        # read -p "MAILU_RECAPTCHA_PUBLIC_KEY: " MAILU_RECAPTCHA_PUBLIC_KEY
+        # read -p "MAILU_RECAPTCHA_PRIVATE_KEY: " MAILU_RECAPTCHA_PRIVATE_KEY
+
+        DB_DATABASE="${APP_PATH}_db"
+        DB_USERNAME="${APP_PATH}_user"
+        DB_PASSWORD=$(openssl rand -base64 15)
+        MAIL_HOST="mail.$DOMAIN"
+        MAIL_PASSWORD=$(openssl rand -base64 15)
+        if [[ ${#DB_ROOT_PASSWORD} < 15 ]]; then
+            DB_ROOT_PASSWORD=$(openssl rand -base64 15)
+        fi
+        if [[ ${#REDIS_PASSWORD} < 15 ]]; then
+            REDIS_PASSWORD=$(openssl rand -base64 15)
+        fi
+
+        echo "DB_DATABASE=$DB_DATABASE"
+        echo "DB_USERNAME=$DB_USERNAME"
+        echo "DB_PASSWORD=$DB_PASSWORD"
+        echo "DB_ROOT_PASSWORD=$DB_ROOT_PASSWORD"
+        echo "REDIS_PASSWORD=$REDIS_PASSWORD"
+        echo "PMA_PORT=$PMA_PORT"
+        read -p "Are you saved this informations?" OK
+    fi
+}
+_env
 
 _laradock() {
     if [[ ! -d "$LARADOCK_PATH" ]]; then
@@ -117,13 +120,14 @@ _laradock() {
             mv $LARAVEL_PATH/laradock-master $LARADOCK_PATH &&
             rm -fv $LARAVEL_PATH/master.zip
     fi
-    if [[ ! -f "$LARADOCK_PATH/.env" ]]; then
-        cp $LARADOCK_PATH/env-example $LARADOCK_PATH/.env
-    fi
 }
 
-_env() {
+_setenv() {
     if [[ ${INSTALL^^} == Y* ]]; then
+        if [[ ! -f "$LARADOCK_PATH/.env" ]]; then
+            cp $LARADOCK_PATH/env-example $LARADOCK_PATH/.env
+        fi
+
         sed -i "s|PHP_FPM_INSTALL_SOAP=.*|PHP_FPM_INSTALL_SOAP=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_MYSQL_CLIENT=.*|WORKSPACE_INSTALL_MYSQL_CLIENT=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_NPM_GULP=.*|WORKSPACE_INSTALL_NPM_GULP=false|" $LARADOCK_PATH/.env
@@ -157,7 +161,9 @@ _env() {
     fi
 
     if [[ ${INSTALL^^} == Y* ]]; then
-        cp $LARAVEL_PATH/.env.example $LARAVEL_PATH/.env
+        if [[ ! -f "$LARAVEL_PATH/.env" ]]; then
+            cp $LARAVEL_PATH/.env.example $LARAVEL_PATH/.env
+        fi
 
         if [[ ${PRODUCTION^^} == Y* ]]; then
             sed -i "s|APP_ENV=.*|APP_ENV=production|" $LARAVEL_PATH/.env
@@ -241,62 +247,36 @@ _backup() {
 }
 
 _mysql() {
-    if ! grep -q "max_allowed_packet=16M" $LARADOCK_PATH/$DB_ENGINE/my.cnf; then
-        echo "" >$LARADOCK_PATH/$DB_ENGINE/my.cnf
-        echo "[mysqld]" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
-        echo "max_allowed_packet=16M" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
-    fi
-
     if [[ $TARGET == "deploy" ]]; then
-        docker-compose up -d $DB_ENGINE
-
-        if [[ ${INSTALL^^} == Y* ]]; then
-            read -p "RESET_DATABASE [y/n]? " RESET_DATABASE
-            if [[ ${RESET_DATABASE^^} == Y* ]]; then
-                sudo rm -fvr ~/.laradock/data/$DB_ENGINE
-            fi
-            docker-compose build --no-cache $DB_ENGINE
-            docker-compose up -d $DB_ENGINE
+        if ! grep -q "max_allowed_packet=16M" $LARADOCK_PATH/$DB_ENGINE/my.cnf; then
+            echo "" >$LARADOCK_PATH/$DB_ENGINE/my.cnf
+            echo "[mysqld]" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
+            echo "max_allowed_packet=16M" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
         fi
 
-        SQL+="ALTER USER 'root'@'%' IDENTIFIED BY '$DB_ROOT_PASSWORD';"
-        SQL+="ALTER USER 'root'@'localhost' IDENTIFIED BY '$DB_ROOT_PASSWORD';"
-
-        SQL+="REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'default'@'localhost';"
-        SQL+="DROP USER IF EXISTS 'default'@'localhost';"
-
-        SQL+="CREATE USER IF NOT EXISTS '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';"
-        SQL+="ALTER USER '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';"
-
+        SQL="REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'default'@'%';"
+        SQL+="DROP USER IF EXISTS 'default'@'%';"
+        SQL+="CREATE USER IF NOT EXISTS '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';"
+        SQL+="ALTER USER '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';"
         SQL+="CREATE DATABASE IF NOT EXISTS $DB_DATABASE COLLATE 'utf8_general_ci';"
-        SQL+="GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'localhost';"
-        SQL+="REVOKE ALL ON $DB_DATABASE.* FROM 'root'@'localhost';"
+        SQL+="GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'%';"
         SQL+="FLUSH PRIVILEGES;"
-
-        SQL+=${SQL//localhost/%}
         IFS=';' read -r -a SQL_ARRAY <<<"$SQL"
 
-        DB_COMPOSE="docker-compose exec -T $DB_ENGINE mysql -u root"
-        eval $DB_COMPOSE -e "SHOW DATABASES;" -p$DB_ROOT_PASSWORD && DB_TEMP_PASS="$DB_ROOT_PASSWORD"
-        eval $DB_COMPOSE -e "SHOW DATABASES;" -psecret && DB_TEMP_PASS="secret"
-        eval $DB_COMPOSE -e "SHOW DATABASES;" -proot && DB_TEMP_PASS="root"
-        eval $DB_COMPOSE -e "SHOW DATABASES;" && DB_TEMP_PASS=""
+        INITDB="$LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/$APP_PATH.sql"
+        touch $INITDB
 
         for QUERY in "${SQL_ARRAY[@]}"; do
-            echo $QUERY
-            if [[ -z $DB_TEMP_PASS ]]; then
-                eval $DB_COMPOSE -e "$QUERY;"
-            else
-                eval $DB_COMPOSE -p$DB_TEMP_PASS -e "$QUERY;"
+            if ! grep -q "$QUERY;" $INITDB; then
+                echo "$QUERY;" >>$INITDB
             fi
         done
 
-        docker-compose exec -T $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e "SHOW DATABASES;" &&
-            docker-compose exec -T $DB_ENGINE mysql -u $DB_USERNAME -p$DB_PASSWORD -e "SHOW TABLES FROM $DB_DATABASE;" &&
-            DB_STATUS="1"
-        if [[ $DB_STATUS != "1" ]]; then
-            _mysql
+        if [[ ${INSTALL^^} == Y* ]] && [[ ${RESET_DATABASE^^} == Y* ]]; then
+            sudo rm -fvr ~/.laradock/data/$DB_ENGINE
         fi
+        docker-compose build --no-cache $DB_ENGINE
+        docker-compose up -d $DB_ENGINE
     fi
 }
 
@@ -452,9 +432,9 @@ if [[ $TARGET == "docker" ]]; then
 else
     git --version && docker --version && docker-compose --version && READY="y"
     if [[ ${READY^^} == Y* ]] && [[ ! -z $USER ]]; then
-        cd $LARADOCK_PATH
         _laradock
-        _env
+        cd $LARADOCK_PATH
+        _setenv
         _crontab
         _backup
         _mysql
