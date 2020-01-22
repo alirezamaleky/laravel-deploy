@@ -288,7 +288,7 @@ _mysql() {
         _mysql
     else
         unset DB_WAITING
-        eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'source /docker-entrypoint-initdb.d/$APP_NAME.sql;'"
+        eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'source /docker-entrypoint-initdb.d/$APP_PATH.sql;'"
     fi
 }
 
