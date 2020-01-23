@@ -272,6 +272,7 @@ _mysql() {
 
         INITDB="$LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/$APP_PATH.sql"
         echo "" >$INITDB
+        rm -fv $LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/*.example
         for QUERY in "${SQL_ARRAY[@]}"; do
             echo "$QUERY;" >>$INITDB
         done
@@ -295,7 +296,7 @@ _mysql() {
 
 _nginx() {
     if [[ $TARGET != "docker" ]] && [[ ${INSTALL^^} == Y* ]]; then
-        rm -fv $LARADOCK_PATH/nginx/sites/default.conf
+        rm -fv $LARADOCK_PATH/nginx/sites/default.conf $LARADOCK_PATH/nginx/sites/*.example
         wget -N https://raw.githubusercontent.com/alirezamaleky/nginx-config/master/default.conf -P $LARADOCK_PATH/nginx/sites
         mv $LARADOCK_PATH/nginx/sites/default.conf $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
         sed -i "s|/var/www/public;|/var/www/$APP_PATH/public;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
