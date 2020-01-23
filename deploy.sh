@@ -505,7 +505,7 @@ if [[ $TARGET == "docker" ]]; then
 
     echo "Deployment takes $((SECONDS - ELAPSED_SEC)) second."
 else
-    if [[ -z $USER ]]; then
+    if [[ -z $USER ]] || ! docker-compose --version; then
         echo "You can't run this script in docker!"
         exit
     fi
@@ -570,7 +570,11 @@ else
 
         eval "$PKM upgrade -y"
         eval "$PKM autoremove -y"
-        eval "$PKM install -y cron curl htop make nano tmux unrar unzip vim wget"
+
+        IFS=' ' read -r -a PACKAGE_ARRAY <<<"cron curl htop make nano tmux unrar unzip vim wget"
+        for PACKAGE in "${PACKAGE_ARRAY[@]}"; do
+            eval "$PKM install -y $PACKAGE"
+        done
 
         if ! docker --version; then
             if [[ $OS_DISTRO == "debian" ]]; then
