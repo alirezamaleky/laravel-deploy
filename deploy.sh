@@ -27,7 +27,6 @@ _path() {
     if [[ -z $APP_PATH ]] || [[ ! -d "$LARAVEL_PATH/public" ]]; then
         unset APP_PATH
         _path
-    # else
     fi
 }
 _path
