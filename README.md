@@ -4,7 +4,7 @@ A bash script to deploy Laravel projects.
 
 ## Usage
 
-Go to project directory and paste following commands:
+Go to project parent directory and paste following commands:
 
 ```bash
 rm -f ./deploy.sh
