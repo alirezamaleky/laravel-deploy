@@ -27,6 +27,7 @@ _path() {
     if [[ -z $APP_PATH ]] || [[ ! -d "$LARAVEL_PATH/public" ]]; then
         unset APP_PATH
         _path
+    # else
     fi
 }
 _path
@@ -381,7 +382,7 @@ _up() {
     if [[ $TARGET == "deploy" ]]; then
         sudo docker-compose exec -T workspace /var/www/deploy.sh -t docker -p $APP_PATH -s $DEPLOY_SCRIPT
     else
-        docker-compose exec workspace bash
+        docker-compose exec workspace bash -c "cd $APP_PATH; bash"
     fi
 }
 
@@ -486,7 +487,6 @@ _permission() {
 
 ELAPSED_SEC=$SECONDS
 if [[ $TARGET == "docker" ]]; then
-    cd $LARAVEL_PATH
     if [[ ${FORCE_UPDATE^^} == Y* ]] || [[ ${INSTALL^^} == Y* ]]; then
         _yarn
         _composer
