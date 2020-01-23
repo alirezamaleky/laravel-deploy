@@ -7,6 +7,11 @@ for ((i = 1; i <= $#; i++)); do
     elif [[ ${!i} = "-t" ]] || [[ ${!i} = "--target" ]]; then
         ((i++))
         TARGET=${!i}
+    elif [[ ${!i} = "-s" ]] || [[ ${!i} = "--scripts" ]]; then
+        ((i++))
+        DEPLOY_SCRIPT=${!i}
+    elif [[ ${!i} = "-u" ]] || [[ ${!i} = "--update" ]]; then
+        FORCE_UPDATE="y"
     fi
 done
 
@@ -31,21 +36,28 @@ if [[ "$*" == *-f* ]] || [[ "$*" == *--format* ]]; then
         RESET_WORKSPACE="y"
 
         read -p "RESET_LARADOCK [y/n]? " RESET_LARADOCK
-        docker container stop $(docker container ls -aq)
         if [[ ${RESET_LARADOCK^^} == Y* ]]; then
             if [[ ! -z $(docker container ls -aq) ]]; then
+                docker container stop $(docker container ls -aq)
                 docker container rm -fv $(docker container ls -aq)
             fi
             docker system prune -f --volumes
             sudo rm -fvr ~/.laradock $LARADOCK_PATH
         fi
 
-        git -C $LARAVEL_PATH clean -fxd
-        git -C $LARAVEL_PATH checkout -f .
+        sudo git -C $LARAVEL_PATH clean -fxd
+        sudo git -C $LARAVEL_PATH checkout -f .
     fi
 fi
 
 _env() {
+    CONTAINERS="nginx mariadb redis"
+    if [[ ${PRODUCTION^^} != Y* ]]; then
+        CONTAINERS+=" phpmyadmin"
+    # else
+    #     CONTAINERS+=" mailu"
+    fi
+
     if [[ ! -d "$LARADOCK_PATH" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "$LARAVEL_PATH/node_modules" ]]; then
         if [[ -z $INSTALL ]] && [[ $TARGET != "docker" ]] && [[ -f "$LARAVEL_PATH/.env" ]] && [[ -f "$LARADOCK_PATH/.env" ]]; then
             read -p "Is this first install? [y/n] " INSTALL
@@ -64,11 +76,6 @@ _env() {
             read -p "Is the project in production? [y/n] " PRODUCTION
         fi
     fi
-
-    CONTAINERS="nginx mariadb phpmyadmin redis"
-    # if [[ ${PRODUCTION^^} == Y* ]]; then
-    #     CONTAINERS+=" mailu"
-    # fi
 
     if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]] && [[ ${RESET_WORKSPACE^^} != Y* ]]; then
         read -p "RESET_DATABASE [y/n]? " RESET_DATABASE
@@ -213,7 +220,7 @@ _crontab() {
             fi
             echo "* * * * * laradock /usr/bin/php /var/www/$APP_PATH/artisan schedule:run >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
             echo "@reboot laradock /usr/bin/php /var/www/$APP_PATH/artisan queue:work --timeout=60 --sleep=3 >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
-            if [[ ${INSTALL^^} != Y* ]]; then
+            if [[ ${INSTALL^^} == Y* ]]; then
                 docker-compose build --no-cache workspace
                 docker-compose up -d workspace
             fi
@@ -255,7 +262,7 @@ _backup() {
 }
 
 _mysql() {
-    if [[ $TARGET == "deploy" ]] && [[ ${DB_WAITING^^} != Y* ]]; then
+    if [[ $TARGET == "deploy" ]] && [[ ${INSTALL^^} == Y* ]] && [[ ${DB_WAITING^^} != Y* ]]; then
         if ! grep -q "max_allowed_packet=16M" $LARADOCK_PATH/$DB_ENGINE/my.cnf; then
             echo "" >$LARADOCK_PATH/$DB_ENGINE/my.cnf
             echo "[mysqld]" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
@@ -284,13 +291,15 @@ _mysql() {
         docker-compose up -d $DB_ENGINE
     fi
 
-    if ! eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'SHOW DATABASES;'"; then
-        DB_WAITING="y"
-        sleep 5
-        _mysql
-    else
-        unset DB_WAITING
-        eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'source /docker-entrypoint-initdb.d/$APP_PATH.sql;'"
+    if [[ ${INSTALL^^} == Y* ]]; then
+        if ! eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'SHOW DATABASES;'"; then
+            DB_WAITING="y"
+            sleep 5
+            _mysql
+        else
+            unset DB_WAITING
+            eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'source /docker-entrypoint-initdb.d/$APP_PATH.sql;'"
+        fi
     fi
 }
 
@@ -330,7 +339,7 @@ _redis() {
 }
 
 _php() {
-    if ! grep -q "puppeteer" $LARADOCK_PATH/php-fpm/Dockerfile; then
+    if [[ ${INSTALL^^} == Y* ]] && [[ ${PRODUCTION^^} == Y* ]] && ! grep -q "puppeteer" $LARADOCK_PATH/php-fpm/Dockerfile; then
         echo "USER root" >>$LARADOCK_PATH/php-fpm/Dockerfile
         echo "RUN curl -sL https://deb.nodesource.com/setup_13.x | bash -" >>$LARADOCK_PATH/php-fpm/Dockerfile
         echo "RUN apt-get install -y nodejs gconf-service libasound2 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 ca-certificates fonts-liberation libappindicator1 libnss3 lsb-release xdg-utils wget" >>$LARADOCK_PATH/php-fpm/Dockerfile
@@ -343,8 +352,26 @@ _php() {
 
 _git() {
     if [[ ${PRODUCTION^^} == Y* ]]; then
-        git -C $LARAVEL_PATH checkout -f master
-        git -C $LARAVEL_PATH checkout -f .
+        sudo git -C $LARAVEL_PATH checkout -f master
+        sudo git -C $LARAVEL_PATH checkout -f .
+    fi
+
+    if [[ ${INSTALL^^} != Y* ]]; then
+        git -C $LARAVEL_PATH fetch origin master
+        eval "git -C $LARAVEL_PATH diff origin/master --name-only" | while read file; do
+            if [[ $file == "package.json" ]] || [[ $file == "package-lock.json" ]] || [[ $file == "yarn.lock" ]]; then
+                DEPLOY_SCRIPT+=_yarn,
+            elif [[ $file == "composer.json" ]] || [[ $file == "composer.lock" ]]; then
+                DEPLOY_SCRIPT+=_composer,
+            elif [[ $file == "database/"* ]]; then
+                DEPLOY_SCRIPT+=_migrate,
+            elif [[ $file == "resources/views/"* ]]; then
+                DEPLOY_SCRIPT+=_blade,
+            fi
+        done
+    fi
+
+    if [[ ${PRODUCTION^^} == Y* ]]; then
         git -C $LARAVEL_PATH pull origin master
     fi
 }
@@ -352,7 +379,7 @@ _git() {
 _up() {
     docker-compose up -d $CONTAINERS
     if [[ $TARGET == "deploy" ]]; then
-        sudo docker-compose exec -T workspace /var/www/deploy.sh -t docker -p $APP_PATH
+        sudo docker-compose exec -T workspace /var/www/deploy.sh -t docker -p $APP_PATH -s $DEPLOY_SCRIPT
     else
         docker-compose exec workspace bash
     fi
@@ -361,62 +388,84 @@ _up() {
 _yarn() {
     killall yarn npm
     if [[ ${PRODUCTION^^} == Y* ]]; then
-        yarn install --production --pure-lockfile --non-interactive &&
-            yarn run prod
+        yarn --cwd $LARAVEL_PATH install --production --pure-lockfile --non-interactive
+        yarn --cwd $LARAVEL_PATH run prod
     else
         if [[ ${INSTALL^^} == Y* ]]; then
-            yarn install
+            yarn --cwd $LARAVEL_PATH install
         else
-            yarn upgrade
+            yarn --cwd $LARAVEL_PATH upgrade
         fi
-        yarn run dev
+        yarn --cwd $LARAVEL_PATH run dev
     fi
 }
 
 _composer() {
     killall composer
-    composer global require hirak/prestissimo
+    composer --working-dir=$LARAVEL_PATH global require hirak/prestissimo
 
     if [[ ${PRODUCTION^^} == Y* ]]; then
-        composer install --optimize-autoloader --no-dev --no-interaction --prefer-dist
+        composer --working-dir=$LARAVEL_PATH install --optimize-autoloader --no-dev --no-interaction --prefer-dist
     else
         if [[ ${INSTALL^^} == Y* ]]; then
-            composer install
+            composer --working-dir=$LARAVEL_PATH install
         else
-            composer update
+            composer --working-dir=$LARAVEL_PATH update
         fi
     fi
 
     if [[ ${INSTALL^^} == Y* ]]; then
-        composer run-script "post-autoload-dump"
-        composer run-script "post-root-package-install"
-        composer run-script "post-create-project-cmd"
+        composer --working-dir=$LARAVEL_PATH run-script "post-autoload-dump"
+        composer --working-dir=$LARAVEL_PATH run-script "post-root-package-install"
+        composer --working-dir=$LARAVEL_PATH run-script "post-create-project-cmd"
+    fi
+}
+
+_migrate() {
+    if [[ ${INSTALL^^} == Y* ]]; then
+        php $LARAVEL_PATH/artisan migrate --force --seed
+    else
+        php $LARAVEL_PATH/artisan migrate --force
+    fi
+}
+
+_blade() {
+    if [[ ${PRODUCTION^^} == Y* ]]; then
+        php $LARAVEL_PATH/artisan view:clear
+        php $LARAVEL_PATH/artisan view:cache
+    else
+        php $LARAVEL_PATH/artisan view:clear
+    fi
+
+    if [[ ${PRODUCTION^^} == Y* ]]; then
+        yarn global add html-minifier
+        html-minifier --collapse-whitespace --remove-comments --remove-optional-tags --remove-redundant-attributes --remove-script-type-attributes --remove-tag-whitespace --use-short-doctype --minify-css true --minify-js true --input-dir $LARAVEL_PATH/storage/framework/views --output-dir $LARAVEL_PATH/storage/framework/views --file-ext "php"
+    fi
+}
+
+_optimize() {
+    if [[ ${PRODUCTION^^} == Y* ]]; then
+        php $LARAVEL_PATH/artisan config:cache
+        php $LARAVEL_PATH/artisan route:cache
+    else
+        php $LARAVEL_PATH/artisan cache:clear
+        php $LARAVEL_PATH/artisan route:clear
+        php $LARAVEL_PATH/artisan config:clear
+        php $LARAVEL_PATH/artisan clear-compiled
     fi
 }
 
 _laravel() {
     if [[ ${INSTALL^^} == Y* ]]; then
-        php artisan migrate --force --seed
-        php artisan storage:link
-    else
-        php artisan migrate --force
-        php artisan queue:restart
+        php $LARAVEL_PATH/artisan storage:link
     fi
 
-    if [[ ${PRODUCTION^^} == Y* ]]; then
-        php artisan optimize
-        php artisan view:clear
-        php artisan view:cache
-    else
-        php artisan optimize:clear
-        php artisan view:clear
-    fi
+    php $LARAVEL_PATH/artisan telescope:publish
+}
 
-    php artisan telescope:publish
-
-    if [[ ${PRODUCTION^^} == Y* ]]; then
-        yarn global add html-minifier
-        html-minifier --collapse-whitespace --remove-comments --remove-optional-tags --remove-redundant-attributes --remove-script-type-attributes --remove-tag-whitespace --use-short-doctype --minify-css true --minify-js true --input-dir $LARAVEL_PATH/storage/framework/views --output-dir $LARAVEL_PATH/storage/framework/views --file-ext "php"
+_queue() {
+    if [[ ${INSTALL^^} != Y* ]]; then
+        php $LARAVEL_PATH/artisan queue:restart
     fi
 }
 
@@ -438,9 +487,20 @@ _permission() {
 ELAPSED_SEC=$SECONDS
 if [[ $TARGET == "docker" ]]; then
     cd $LARAVEL_PATH
-    _yarn
-    _composer
+    if [[ ${FORCE_UPDATE^^} == Y* ]] || [[ ${INSTALL^^} == Y* ]]; then
+        _yarn
+        _composer
+        _migrate
+        _blade
+    else
+        IFS=',' read -r -a SCRIPT_ARRAY <<<"$DEPLOY_SCRIPT"
+        for QUERY in "${SCRIPT_ARRAY[@]}"; do
+            $QUERY
+        done
+    fi
+    _optimize
     _laravel
+    _queue
     _permission
     echo "Deployment takes $((SECONDS - ELAPSED_SEC)) second."
 else
