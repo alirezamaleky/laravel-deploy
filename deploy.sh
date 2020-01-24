@@ -245,7 +245,7 @@ _crontab() {
 }
 
 _backup() {
-    if [[ ! -d "$LARAVEL_PATH/storage/app/databases" ]] && [[ $TARGET != "docker" ]]; then
+    if [[ ! -d "$LARAVEL_PATH/storage/app/databases" ]]; then
         mkdir -p $LARAVEL_PATH/storage/app/databases
     fi
     if [[ $TARGET == "deploy" ]] && [[ ${INSTALL^^} != Y* ]] && [[ ${PRODUCTION^^} == Y* ]]; then
