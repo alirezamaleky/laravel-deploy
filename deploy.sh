@@ -524,10 +524,6 @@ else
         echo "You can't run this script in docker!"
         exit
     fi
-    if ! git --version; then
-        echo "Please install and configure the git!"
-        exit
-    fi
 
     if docker --version && docker-compose --version; then
         _laradock
@@ -569,16 +565,20 @@ else
         eval "$PKM update"
 
         if [[ $OS_DISTRO == "centos" ]]; then
-            eval "$OS_DISTRO install -y epel-release yum-utils"
-            eval "$OS_DISTRO install -y http://rpms.remirepo.net/enterprise/remi-release-7.rpm"
-            eval "$OS_DISTRO-config-manager --enable remi"
-            eval "$OS_DISTRO install -y http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm"
+            eval "$PKM install -y epel-release yum-utils"
+            eval "$PKM install -y http://rpms.remirepo.net/enterprise/remi-release-7.rpm"
+            eval "yum-config-manager --enable remi"
+            eval "$PKM install -y yum-fastestmirror"
+            eval "$PKM install -y http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm"
         elif [[ $OS_DISTRO == "fedora" ]]; then
-            eval "$PKM install -y dnf-plugins-core"
             eval "$PKM install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm"
             eval "$PKM install -y https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm"
+            eval "$PKM install -y dnf-plugins-core fedora-workstation-repositories"
+            eval "$PKM install -y yum-plugin-fastestmirror yum-axelget"
+            echo "fastestmirror=true" >>/etc/dnf/dnf.conf
         fi
 
+        eval "$PKM update"
         eval "$PKM upgrade -y"
         eval "$PKM autoremove -y"
 
@@ -586,6 +586,18 @@ else
         for PACKAGE in "${PACKAGE_ARRAY[@]}"; do
             eval "$PKM install -y $PACKAGE"
         done
+
+        if ! git --version || [[ ! -f ~/.ssh/id_rsa.pub ]]; then
+            eval "$PKM install -y git"
+            read -e -p "GIT_NAME: " -i "Alireza Maleky" GIT_NAME
+            read -e -p "GIT_EMAIL: " -i "alirezaabdalmaleky@gmail.com" GIT_EMAIL
+            eval "git config --global user.name '$GIT_NAME'"
+            eval "git config --global user.email '$GIT_EMAIL'"
+            eval "git config --global alias.mg '!git checkout master; git merge dev --no-edit --no-ff; git push --all; git checkout dev'"
+            eval "ssh-keygen -t rsa -b 4096 -C '$GIT_EMAIL' -f ~/.ssh/id_rsa.pub -q -N ''"
+            eval "cat ~/.ssh/id_rsa.pub"
+            read -p "Are you saved this informations?" OK
+        fi
 
         if ! docker --version; then
             if [[ $OS_DISTRO == "debian" ]]; then
