@@ -375,7 +375,7 @@ _git() {
         done
     fi
 
-    if [[ ${PRODUCTION^^} == Y* ]]; then
+    if [[ ${PRODUCTION^^} == Y* ]] && [[ $TARGET == "deploy" ]]; then
         git -C $LARAVEL_PATH pull origin master
     fi
 }
