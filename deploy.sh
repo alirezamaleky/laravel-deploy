@@ -17,7 +17,11 @@ done
 
 _path() {
     if [[ -z $APP_PATH ]]; then
-        read -p "APP_PATH: " APP_PATH
+        if [[ -d "$PWD/public" ]]; then
+            APP_PATH=$(basename $PWD)
+        else
+            read -p "APP_PATH: " APP_PATH
+        fi
     fi
 
     SCRIPT_PATH=$(realpath $0)
@@ -552,11 +556,7 @@ else
 
         eval "$PKM update"
 
-        if [[ $OS_DISTRO == "debian" ]]; then
-            eval "$PKM install -y "
-        elif [[ $OS_DISTRO == "ubuntu" ]]; then
-            eval "$PKM install -y "
-        elif [[ $OS_DISTRO == "centos" ]]; then
+        if [[ $OS_DISTRO == "centos" ]]; then
             eval "$OS_DISTRO install -y epel-release yum-utils"
             eval "$OS_DISTRO install -y http://rpms.remirepo.net/enterprise/remi-release-7.rpm"
             eval "$OS_DISTRO-config-manager --enable remi"
