@@ -383,7 +383,14 @@ _git() {
 _up() {
     docker-compose up -d $CONTAINERS
     if [[ $TARGET == "deploy" ]]; then
-        sudo docker-compose exec -T workspace /var/www/deploy.sh -t docker -p $APP_PATH -s $DEPLOY_SCRIPT
+        COMPOSE_SCRIPT="sudo docker-compose exec -T workspace /var/www/deploy.sh -t docker -p $APP_PATH"
+        if [[ ! -z $FORCE_UPDATE ]]; then
+            COMPOSE_SCRIPT+=" -u"
+        fi
+        if [[ ! -z $DEPLOY_SCRIPT ]]; then
+            COMPOSE_SCRIPT+=" -s $DEPLOY_SCRIPT"
+        fi
+        eval $COMPOSE_SCRIPT
     else
         docker-compose exec workspace bash -c "cd $APP_PATH; bash"
     fi
