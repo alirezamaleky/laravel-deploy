@@ -261,7 +261,7 @@ _backup() {
             --ignore-table=$DB_DATABASE.telescope_entries \
             --ignore-table=$DB_DATABASE.telescope_entries_tags \
             --ignore-table=$DB_DATABASE.telescope_monitoring \
-            --result-file=./storage/app/databases/$(date "+%y-%m-%d_%H:%M").sql
+            --result-file=/var/www/$APP_PATH/storage/app/databases/$(date "+%y-%m-%d_%H:%M").sql
     fi
 }
 
