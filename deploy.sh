@@ -50,7 +50,7 @@ if [[ "$*" == *-f* ]] || [[ "$*" == *--format* ]]; then
         fi
 
         sudo git -C $LARAVEL_PATH clean -fxd
-        sudo git -C $LARAVEL_PATH checkout -f .
+        sudo git -C $LARAVEL_PATH checkout -f $LARAVEL_PATH
     fi
 fi
 
@@ -357,7 +357,7 @@ _php() {
 _git() {
     if [[ ${PRODUCTION^^} == Y* ]] && [[ $TARGET == "deploy" ]]; then
         sudo git -C $LARAVEL_PATH checkout -f master
-        sudo git -C $LARAVEL_PATH checkout -f .
+        sudo git -C $LARAVEL_PATH checkout -f $LARAVEL_PATH
     fi
 
     if [[ ${INSTALL^^} != Y* ]]; then
