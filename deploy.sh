@@ -465,6 +465,11 @@ _laravel() {
     fi
 
     php $LARAVEL_PATH/artisan telescope:publish
+
+    if [[ ${PRODUCTION^^} != Y* ]]; then
+        php $LARAVEL_PATH/artisan ide-helper:generate
+        php $LARAVEL_PATH/artisan ide-helper:models -N
+    fi
 }
 
 _queue() {
