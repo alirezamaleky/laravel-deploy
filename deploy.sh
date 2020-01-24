@@ -355,7 +355,7 @@ _php() {
 }
 
 _git() {
-    if [[ ${PRODUCTION^^} == Y* ]]; then
+    if [[ ${PRODUCTION^^} == Y* ]] && [[ $TARGET == "deploy" ]]; then
         sudo git -C $LARAVEL_PATH checkout -f master
         sudo git -C $LARAVEL_PATH checkout -f .
     fi
