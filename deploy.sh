@@ -549,7 +549,7 @@ else
             PKM="dnf"
         fi
 
-        if [[ -z $PKM ]] || ! $PKM; then
+        if [[ -z $PKM ]] || ! eval "$PKM"; then
             echo "Your OS is undefined!"
             exit
         fi
