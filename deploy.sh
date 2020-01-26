@@ -520,7 +520,7 @@ if [[ $TARGET == "docker" ]]; then
 
     echo "Deployment takes $((SECONDS - ELAPSED_SEC)) second."
 else
-    if [[ -z $USER ]] ||; then
+    if [[ -z $USER ]]; then
         echo "You can't run this script in docker!"
         exit
     fi
