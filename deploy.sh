@@ -520,12 +520,12 @@ if [[ $TARGET == "docker" ]]; then
 
     echo "Deployment takes $((SECONDS - ELAPSED_SEC)) second."
 else
-    if [[ -z $USER ]] || ! docker-compose --version; then
+    if [[ -z $USER ]] ||; then
         echo "You can't run this script in docker!"
         exit
     fi
 
-    if docker --version && docker-compose --version; then
+    if git --version && docker --version && docker-compose --version; then
         _laradock
         _setenv
         _crontab
