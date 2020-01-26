@@ -548,16 +548,11 @@ else
         elif [[ $OS_DISTRO == "fedora" ]]; then
             PKM="dnf"
         fi
+        PKM="sudo $PKM"
 
         if [[ -z $PKM ]]; then
             echo "Your OS is undefined!"
             exit
-        fi
-        if ! sudo; then
-            echo "Failed to install sudo!"
-            exit
-        else
-            PKM="sudo $PKM"
         fi
 
         eval "$PKM update"
