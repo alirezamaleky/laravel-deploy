@@ -554,10 +554,8 @@ else
             exit
         fi
         if ! sudo; then
-            eval "$PKM install -y sudo" || {
-                echo "Failed to install sudo!"
-                exit
-            }
+            echo "Failed to install sudo!"
+            exit
         else
             PKM="sudo $PKM"
         fi
