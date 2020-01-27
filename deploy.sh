@@ -642,9 +642,9 @@ _router() {
                 eval "sudo rm -f /usr/bin/docker-compose"
                 eval "sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose"
             fi
-        fi
 
-        _router
+            _router
+        fi
     fi
 }
 _router
