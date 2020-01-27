@@ -541,17 +541,20 @@ _router() {
 
             echo "Installation takes $((SECONDS - ELAPSED_SEC)) second."
         else
-            read -p "What is your OS [debian/ubuntu/centos/fedora]? " OS_DISTRO
+            OS_DISTRO="$(lsb_release -is)"
+            OS_DISTRO=${OS_DISTRO,,}
 
-            if [[ $OS_DISTRO == "debian" ]]; then
-                PKM="apt-get"
-            elif [[ $OS_DISTRO == "ubuntu" ]]; then
-                PKM="apt"
-            elif [[ $OS_DISTRO == "centos" ]]; then
-                PKM="yum"
-            elif [[ $OS_DISTRO == "fedora" ]]; then
-                PKM="dnf"
-            fi
+            declare -A OS_INFO
+            OS_INFO["/etc/debian_version"]="apt-get"
+            OS_INFO["/etc/redhat-release"]="yum"
+            # OS_INFO["/etc/arch-release"]="pacman"
+            # OS_INFO["/etc/gentoo-release"]="emerge"
+            # OS_INFO["/etc/SuSE-release"]="zypper"
+            for file in ${!OS_INFO[@]}; do
+                if [[ -f $file ]]; then
+                    PKM=${OS_INFO[$file]}
+                fi
+            done
 
             if [[ -z $PKM ]]; then
                 echo "Your OS is undefined!"
@@ -574,6 +577,11 @@ _router() {
                 eval "$PKM install -y yum-plugin-fastestmirror yum-axelget"
                 echo "fastestmirror=true" >>/etc/dnf/dnf.conf
             fi
+
+            IFS=' ' read -r -a PACKAGE_ARRAY <<<"apache2 apache nginx"
+            for PACKAGE in "${PACKAGE_ARRAY[@]}"; do
+                eval "$PKM remove -y $PACKAGE"
+            done
 
             eval "$PKM update"
             eval "$PKM upgrade -y"
