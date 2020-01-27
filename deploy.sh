@@ -500,142 +500,150 @@ _permission() {
     chown -R laradock:laradock $LARAVEL_PATH
 }
 
-ELAPSED_SEC=$SECONDS
-if [[ $TARGET == "docker" ]]; then
-    if [[ ${FORCE_UPDATE^^} == Y* ]] || [[ ${INSTALL^^} == Y* ]]; then
-        _yarn
-        _composer
-        _migrate
-        _blade
-    else
-        IFS=',' read -r -a SCRIPT_ARRAY <<<"$DEPLOY_SCRIPT"
-        for QUERY in "${SCRIPT_ARRAY[@]}"; do
-            $QUERY
-        done
-    fi
-    _optimize
-    _laravel
-    _queue
-    _permission
+_router() {
 
-    echo "Deployment takes $((SECONDS - ELAPSED_SEC)) second."
-else
-    if [[ -z $USER ]]; then
-        echo "You can't run this script in docker!"
-        exit
-    fi
-
-    if git --version && docker --version && docker-compose --version; then
-        _laradock
-        _setenv
-        _crontab
-        _backup
-        _mysql
-        _nginx
-        _redis
-        _php
-        _git
-        _up
-    else
-        read -p "What is your OS [debian/ubuntu/centos/fedora]? " OS_DISTRO
-
-        if [[ $OS_DISTRO == "debian" ]]; then
-            PKM="apt-get"
-        elif [[ $OS_DISTRO == "ubuntu" ]]; then
-            PKM="apt"
-        elif [[ $OS_DISTRO == "centos" ]]; then
-            PKM="yum"
-        elif [[ $OS_DISTRO == "fedora" ]]; then
-            PKM="dnf"
+    ELAPSED_SEC=$SECONDS
+    if [[ $TARGET == "docker" ]]; then
+        if [[ ${FORCE_UPDATE^^} == Y* ]] || [[ ${INSTALL^^} == Y* ]]; then
+            _yarn
+            _composer
+            _migrate
+            _blade
+        else
+            IFS=',' read -r -a SCRIPT_ARRAY <<<"$DEPLOY_SCRIPT"
+            for QUERY in "${SCRIPT_ARRAY[@]}"; do
+                $QUERY
+            done
         fi
-        PKM="sudo $PKM"
+        _optimize
+        _laravel
+        _queue
+        _permission
 
-        if [[ -z $PKM ]]; then
-            echo "Your OS is undefined!"
+        echo "Deployment takes $((SECONDS - ELAPSED_SEC)) second."
+    else
+        if [[ -z $USER ]]; then
+            echo "You can't run this script in docker!"
             exit
         fi
 
-        eval "$PKM update"
+        if git --version && docker --version && docker-compose --version; then
+            _laradock
+            _setenv
+            _crontab
+            _backup
+            _mysql
+            _nginx
+            _redis
+            _php
+            _git
+            _up
 
-        if [[ $OS_DISTRO == "centos" ]]; then
-            eval "$PKM install -y epel-release yum-utils"
-            eval "$PKM install -y http://rpms.remirepo.net/enterprise/remi-release-7.rpm"
-            eval "yum-config-manager --enable remi"
-            eval "$PKM install -y yum-fastestmirror"
-            eval "$PKM install -y http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm"
-        elif [[ $OS_DISTRO == "fedora" ]]; then
-            eval "$PKM install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm"
-            eval "$PKM install -y https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm"
-            eval "$PKM install -y dnf-plugins-core fedora-workstation-repositories"
-            eval "$PKM install -y yum-plugin-fastestmirror yum-axelget"
-            echo "fastestmirror=true" >>/etc/dnf/dnf.conf
-        fi
+            echo "Installation takes $((SECONDS - ELAPSED_SEC)) second."
+        else
+            read -p "What is your OS [debian/ubuntu/centos/fedora]? " OS_DISTRO
 
-        eval "$PKM update"
-        eval "$PKM upgrade -y"
-        eval "$PKM autoremove -y"
-
-        IFS=' ' read -r -a PACKAGE_ARRAY <<<"cron curl htop make nano tmux unrar unzip vim wget"
-        for PACKAGE in "${PACKAGE_ARRAY[@]}"; do
-            eval "$PKM install -y $PACKAGE"
-        done
-
-        if ! git --version || [[ ! -f ~/.ssh/id_rsa.pub ]]; then
-            eval "$PKM install -y git"
-            read -e -p "GIT_NAME: " -i "Alireza Maleky" GIT_NAME
-            read -e -p "GIT_EMAIL: " -i "alirezaabdalmaleky@gmail.com" GIT_EMAIL
-            eval "git config --global user.name '$GIT_NAME'"
-            eval "git config --global user.email '$GIT_EMAIL'"
-            eval "git config --global alias.mg '!git checkout master; git merge dev --no-edit --no-ff; git push --all; git checkout dev'"
-            eval "ssh-keygen -t rsa -b 4096 -C '$GIT_EMAIL' -f ~/.ssh/id_rsa.pub -q -N ''"
-            eval "cat ~/.ssh/id_rsa.pub"
-            read -p "Are you saved this informations?" OK
-        fi
-
-        if ! docker --version; then
             if [[ $OS_DISTRO == "debian" ]]; then
-                eval "$PKM remove -y docker docker-engine docker.io containerd runc"
-                eval "$PKM install -y apt-transport-https ca-certificates curl gnupg2 software-properties-common"
-                eval "curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -"
-                eval "sudo apt-key fingerprint 0EBFCD88"
-                eval "sudo add-apt-repository 'deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable'"
+                PKM="apt-get"
             elif [[ $OS_DISTRO == "ubuntu" ]]; then
-                eval "$PKM remove -y docker docker-engine docker.io containerd runc"
-                eval "$PKM install -y apt-transport-https ca-certificates curl gnupg-agent software-properties-common"
-                eval "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -"
-                eval "sudo apt-key fingerprint 0EBFCD88"
-                eval "sudo add-apt-repository 'deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable'"
+                PKM="apt"
             elif [[ $OS_DISTRO == "centos" ]]; then
-                eval "$PKM remove -y remove docker docker-client docker-client-latest docker-common docker-latest docker-latest-logrotate docker-logrotate docker-engine"
-                eval "$PKM install -y yum-utils device-mapper-persistent-data lvm2"
-                eval "sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo"
+                PKM="yum"
             elif [[ $OS_DISTRO == "fedora" ]]; then
-                eval "$PKM remove -y docker docker-client docker-client-latest docker-common docker-latest docker-latest-logrotate docker-logrotate docker-selinux docker-engine-selinux docker-engine"
-                eval "$PKM config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo"
+                PKM="dnf"
+            fi
+
+            if [[ -z $PKM ]]; then
+                echo "Your OS is undefined!"
+                exit
+            fi
+            PKM="sudo $PKM"
+
+            eval "$PKM update"
+
+            if [[ $OS_DISTRO == "centos" ]]; then
+                eval "$PKM install -y epel-release yum-utils"
+                eval "$PKM install -y http://rpms.remirepo.net/enterprise/remi-release-7.rpm"
+                eval "yum-config-manager --enable remi"
+                eval "$PKM install -y yum-fastestmirror"
+                eval "$PKM install -y http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm"
+            elif [[ $OS_DISTRO == "fedora" ]]; then
+                eval "$PKM install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm"
+                eval "$PKM install -y https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm"
+                eval "$PKM install -y dnf-plugins-core fedora-workstation-repositories"
+                eval "$PKM install -y yum-plugin-fastestmirror yum-axelget"
+                echo "fastestmirror=true" >>/etc/dnf/dnf.conf
             fi
 
             eval "$PKM update"
-            eval "$PKM install -y docker-ce docker-ce-cli containerd.io"
+            eval "$PKM upgrade -y"
+            eval "$PKM autoremove -y"
 
-            eval "docker system prune --all"
-            eval "systemctl start docker; systemctl enable docker"
+            IFS=' ' read -r -a PACKAGE_ARRAY <<<"cron curl htop make nano tmux unrar unzip vim wget"
+            for PACKAGE in "${PACKAGE_ARRAY[@]}"; do
+                eval "$PKM install -y $PACKAGE"
+            done
 
-            if [[ $USER != "root" ]]; then
-                eval "groupadd docker"
-                eval "newgrp docker"
-                eval "usermod -aG docker $USER"
-                eval "mkdir /home/$USER/.docker"
-                eval "chown $USER:$USER /home/$USER/.docker -R"
-                eval "chmod g+rwx /home/$USER/.docker -R"
+            if ! git --version || [[ ! -f ~/.ssh/id_rsa.pub ]]; then
+                eval "$PKM install -y git"
+                read -e -p "GIT_NAME: " -i "Alireza Maleky" GIT_NAME
+                read -e -p "GIT_EMAIL: " -i "alirezaabdalmaleky@gmail.com" GIT_EMAIL
+                eval "git config --global user.name '$GIT_NAME'"
+                eval "git config --global user.email '$GIT_EMAIL'"
+                eval "git config --global alias.mg '!git checkout master; git merge dev --no-edit --no-ff; git push --all; git checkout dev'"
+                eval "ssh-keygen -t rsa -b 4096 -C '$GIT_EMAIL' -f ~/.ssh/id_rsa.pub -q -N ''"
+                eval "cat ~/.ssh/id_rsa.pub"
+                read -p "Are you saved this informations?" OK
+            fi
+
+            if ! docker --version; then
+                if [[ $OS_DISTRO == "debian" ]]; then
+                    eval "$PKM remove -y docker docker-engine docker.io containerd runc"
+                    eval "$PKM install -y apt-transport-https ca-certificates curl gnupg2 software-properties-common"
+                    eval "curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -"
+                    eval "sudo apt-key fingerprint 0EBFCD88"
+                    eval "sudo add-apt-repository 'deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable'"
+                elif [[ $OS_DISTRO == "ubuntu" ]]; then
+                    eval "$PKM remove -y docker docker-engine docker.io containerd runc"
+                    eval "$PKM install -y apt-transport-https ca-certificates curl gnupg-agent software-properties-common"
+                    eval "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -"
+                    eval "sudo apt-key fingerprint 0EBFCD88"
+                    eval "sudo add-apt-repository 'deb [arch=amd64] https://download.docker.com/linux/ubuntu disco stable'"
+                elif [[ $OS_DISTRO == "centos" ]]; then
+                    eval "$PKM remove -y remove docker docker-client docker-client-latest docker-common docker-latest docker-latest-logrotate docker-logrotate docker-engine"
+                    eval "$PKM install -y yum-utils device-mapper-persistent-data lvm2"
+                    eval "sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo"
+                elif [[ $OS_DISTRO == "fedora" ]]; then
+                    eval "$PKM remove -y docker docker-client docker-client-latest docker-common docker-latest docker-latest-logrotate docker-logrotate docker-selinux docker-engine-selinux docker-engine"
+                    eval "$PKM config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo"
+                fi
+
+                eval "$PKM update"
+                eval "$PKM install -y docker-ce docker-ce-cli containerd.io"
+
+                eval "sudo systemctl restart docker"
+                eval "sudo systemctl enable docker"
+                eval "docker system prune -f --all"
+
+                if [[ $USER != "root" ]]; then
+                    eval "sudo groupadd docker"
+                    eval "sudo newgrp docker"
+                    eval "sudo usermod -aG docker $USER"
+                    eval "mkdir /home/$USER/.docker"
+                    eval "chown $USER:$USER /home/$USER/.docker -R"
+                    eval "chmod g+rwx /home/$USER/.docker -R"
+                fi
+            fi
+
+            if ! docker-compose --version; then
+                eval "sudo curl -L 'https://github.com/docker/compose/releases/download/1.25.0/docker-compose-$(uname -s)-$(uname -m)' -o /usr/local/bin/docker-compose"
+                eval "sudo chmod +x /usr/local/bin/docker-compose"
+                eval "sudo rm -f /usr/bin/docker-compose"
+                eval "sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose"
             fi
         fi
 
-        if ! docker-compose --version; then
-            eval "curl -L 'https://github.com/docker/compose/releases/download/1.25.0/docker-compose-$(uname -s)-$(uname -m)' -o /usr/local/bin/docker-compose"
-            eval "chmod +x /usr/local/bin/docker-compose"
-            eval "ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose"
-        fi
+        _router
     fi
-
-    echo "Installation takes $((SECONDS - ELAPSED_SEC)) second."
-fi
+}
+_router
