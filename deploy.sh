@@ -627,11 +627,12 @@ _router() {
 
                 if [[ $USER != "root" ]]; then
                     eval "sudo groupadd docker"
-                    eval "sudo newgrp docker"
                     eval "sudo usermod -aG docker $USER"
-                    eval "mkdir /home/$USER/.docker"
+                    eval "newgrp docker"
+                    eval "mkdir -p /home/$USER/.docker"
                     eval "chown $USER:$USER /home/$USER/.docker -R"
                     eval "chmod g+rwx /home/$USER/.docker -R"
+                    eval "sudo chown root:docker /var/run/docker.sock"
                 fi
             fi
 
