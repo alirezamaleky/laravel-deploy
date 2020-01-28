@@ -265,7 +265,7 @@ _mysql() {
         INITDB="$LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/$APP_PATH.sql"
         echo "" >$INITDB
         rm -fv $LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/*.example
-        for QUERY in ${SQL_ARRAY[@]}; do
+        for QUERY in "${SQL_ARRAY[@]}"; do
             echo "$QUERY;" >>$INITDB
         done
 
@@ -518,7 +518,7 @@ _router() {
             _blade
         else
             IFS=',' read -r -a SCRIPT_ARRAY <<<$DEPLOY_SCRIPT
-            for SCRIPT in ${SCRIPT_ARRAY[@]}; do
+            for SCRIPT in "${SCRIPT_ARRAY[@]}"; do
                 $SCRIPT
             done
         fi
@@ -586,7 +586,7 @@ _router() {
             fi
 
             IFS=' ' read -r -a PACKAGE_ARRAY <<<"apache2 apache nginx"
-            for PACKAGE in ${PACKAGE_ARRAY[@]}; do
+            for PACKAGE in "${PACKAGE_ARRAY[@]}"; do
                 eval "$PKM remove -y $PACKAGE"
             done
 
@@ -595,7 +595,7 @@ _router() {
             eval "$PKM autoremove -y"
 
             IFS=' ' read -r -a PACKAGE_ARRAY <<<"cron curl htop make nano tmux unrar unzip vim wget"
-            for PACKAGE in ${PACKAGE_ARRAY[@]}; do
+            for PACKAGE in "${PACKAGE_ARRAY[@]}"; do
                 eval "$PKM install -y $PACKAGE"
             done
 
