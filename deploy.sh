@@ -530,7 +530,9 @@ _router() {
             exit
         fi
 
-        if git --version && docker --version && docker-compose --version; then
+        if [[ -f "/usr/bin/git" ]] &&
+            [[ -f "/usr/bin/docker" ]] &&
+            [[ -f "/usr/bin/docker-compose" ]]; then
             _laradock
             _setenv
             _crontab
@@ -592,7 +594,7 @@ _router() {
                 eval "$PKM install -y $PACKAGE"
             done
 
-            if ! git --version || [[ ! -f ~/.ssh/id_rsa.pub ]]; then
+            if [[ ! -f "/usr/bin/git" ]] || [[ ! -f ~/.ssh/id_rsa.pub ]]; then
                 eval "$PKM install -y git"
                 read -e -p "GIT_NAME: " -i "Alireza Maleky" GIT_NAME
                 read -e -p "GIT_EMAIL: " -i "alirezaabdalmaleky@gmail.com" GIT_EMAIL
@@ -604,7 +606,7 @@ _router() {
                 read -p "Are you saved this informations?" OK
             fi
 
-            if ! docker --version; then
+            if [[ ! -f "/usr/bin/docker" ]]; then
                 if [[ $OS_DISTRO == "debian" ]]; then
                     eval "$PKM remove -y docker docker-engine docker.io containerd runc"
                     eval "$PKM install -y apt-transport-https ca-certificates curl gnupg2 software-properties-common"
@@ -644,7 +646,7 @@ _router() {
                 fi
             fi
 
-            if ! docker-compose --version; then
+            if [[ ! -f "/usr/bin/docker-compose" ]]; then
                 eval "sudo curl -L 'https://github.com/docker/compose/releases/download/1.25.0/docker-compose-$(uname -s)-$(uname -m)' -o /usr/local/bin/docker-compose"
                 eval "sudo chmod +x /usr/local/bin/docker-compose"
                 eval "sudo rm -f /usr/bin/docker-compose"
