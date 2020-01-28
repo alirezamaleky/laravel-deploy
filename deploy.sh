@@ -14,7 +14,6 @@ for ((i = 1; i <= $#; i++)); do
         FORCE_UPDATE="y"
     fi
 done
-echo $DEPLOY_SCRIPT
 
 _path() {
     if [[ -z $APP_PATH ]]; then
