@@ -366,17 +366,16 @@ _git() {
     if [[ ${INSTALL^^} != Y* ]]; then
         git -C $LARAVEL_PATH fetch origin master
         eval "git -C $LARAVEL_PATH diff origin/master --name-only" | while read file; do
-            if ([[ $file == *"resources/"* ]] && [[ $file != *"resources/views/"* ]] && [[ $file != *"resources/lang/"* ]]) ||
-                [[ $file == *"package.json"* ]] ||
-                [[ $file == *"package-lock.json"* ]] ||
-                [[ $file == *"yarn.lock"* ]]; then
+            if ([[ $file == "resources/"* ]] && [[ $file != "resources/views/"* ]] && [[ $file != "resources/lang/"* ]]) ||
+                [[ $file == "yarn.lock" ]] ||
+                [[ $file == "package.json" ]] ||
+                [[ $file == "package-lock.json" ]]; then
                 DEPLOY_SCRIPT+="_yarn,"
-            elif [[ $file == *"composer.json"* ]] ||
-                [[ $file == *"composer.lock"* ]]; then
+            elif [[ $file == "composer.lock" ]] || [[ $file == "composer.json" ]]; then
                 DEPLOY_SCRIPT+="_composer,"
-            elif [[ $file == *"database/"* ]]; then
+            elif [[ $file == "database/"* ]]; then
                 DEPLOY_SCRIPT+="_migrate,"
-            elif [[ $file == *"resources/views/"* ]]; then
+            elif [[ $file == "resources/views/"* ]]; then
                 DEPLOY_SCRIPT+="_blade"
             fi
         done
