@@ -28,7 +28,11 @@ _path() {
     LARAVEL_PATH=$(dirname $SCRIPT_PATH)/$APP_PATH
     LARADOCK_PATH=$(dirname $SCRIPT_PATH)/laradock
 
-    if [[ -z $APP_PATH ]] || [[ ! -d "$LARAVEL_PATH/public" ]]; then
+    if [[ -d "$(dirname $SCRIPT_PATH)/public" ]]; then
+        echo "You must run this script in project parent folder!"
+        rm -fv $SCRIPT_PATH
+        exit
+    elif [[ -z $APP_PATH ]] || [[ ! -d "$LARAVEL_PATH/public" ]]; then
         unset APP_PATH
         _path
     fi
