@@ -347,10 +347,13 @@ _git() {
         DIFF_SCRIPT="git -C $LARAVEL_PATH diff master origin/master --name-only --"
         if [[ $($DIFF_SCRIPT yarn.lock package.json package-lock.json resources/fonts/ resources/images/ resources/js/ resources/scss/ resources/vue/) ]]; then
             DEPLOY_SCRIPT+="_yarn,"
+        fi
         if [[ $($DIFF_SCRIPT composer.lock composer.json) ]]; then
             DEPLOY_SCRIPT+="_composer,"
+        fi
         if [[ $($DIFF_SCRIPT database/) ]]; then
             DEPLOY_SCRIPT+="_backup,_migrate,"
+        fi
         if [[ $($DIFF_SCRIPT resources/views/) ]]; then
             DEPLOY_SCRIPT+="_blade"
         fi
