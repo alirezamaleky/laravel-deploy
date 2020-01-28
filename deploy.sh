@@ -384,15 +384,14 @@ _yarn() {
     killall yarn npm
     if [[ ${PRODUCTION^^} == Y* ]]; then
         yarn --cwd $LARAVEL_PATH install --production --pure-lockfile --non-interactive
-        yarn --cwd $LARAVEL_PATH run prod
     else
         if [[ ${INSTALL^^} == Y* ]]; then
             yarn --cwd $LARAVEL_PATH install
         else
             yarn --cwd $LARAVEL_PATH upgrade
         fi
-        yarn --cwd $LARAVEL_PATH run dev
     fi
+    yarn --cwd $LARAVEL_PATH run prod
 }
 
 _composer() {
@@ -438,10 +437,14 @@ _backup() {
 }
 
 _migrate() {
-    if [[ ${INSTALL^^} == Y* ]]; then
-        php $LARAVEL_PATH/artisan migrate --force --seed
+    if [[ ${PRODUCTION^^} == Y* ]]; then
+        if [[ ${INSTALL^^} == Y* ]]; then
+            php $LARAVEL_PATH/artisan migrate --force --seed
+        else
+            php $LARAVEL_PATH/artisan migrate --force
+        fi
     else
-        php $LARAVEL_PATH/artisan migrate --force
+        php $LARAVEL_PATH/artisan migrate:fresh --force --seed
     fi
 }
 
