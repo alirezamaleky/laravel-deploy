@@ -35,7 +35,7 @@ _path() {
 }
 _path
 
-if [[ "$*" == *-f* ]] || [[ "$*" == *--format* ]]; then
+_format() {
     if [[ $TARGET != "docker" ]]; then
         RESET_WORKSPACE="y"
 
@@ -52,6 +52,9 @@ if [[ "$*" == *-f* ]] || [[ "$*" == *--format* ]]; then
         sudo git -C $LARAVEL_PATH clean -fxd
         sudo git -C $LARAVEL_PATH checkout -f $LARAVEL_PATH
     fi
+}
+if [[ "$*" == *-f* ]] || [[ "$*" == *--format* ]]; then
+    _format
 fi
 
 _env() {
@@ -217,7 +220,7 @@ _setenv() {
 }
 
 _crontab() {
-    if [[ ${PRODUCTION^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
+    if [[ ${PRODUCTION^^} == Y* ]]; then
         if ! grep -q "/var/www/$APP_PATH" $LARADOCK_PATH/workspace/crontab/laradock; then
             if grep -q "/var/www/artisan" $LARADOCK_PATH/workspace/crontab/laradock; then
                 echo "" >$LARADOCK_PATH/workspace/crontab/laradock
@@ -233,7 +236,7 @@ _crontab() {
         echo "" >$LARADOCK_PATH/workspace/crontab/laradock
     fi
 
-    if [[ ${PRODUCTION^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
+    if [[ ${PRODUCTION^^} == Y* ]]; then
         if ! grep -q "cd $LARADOCK_PATH && docker-compose up" /etc/crontab; then
             sudo echo "@reboot root cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
         fi
@@ -308,7 +311,7 @@ _mysql() {
 }
 
 _nginx() {
-    if [[ $TARGET != "docker" ]] && [[ ${INSTALL^^} == Y* ]]; then
+    if [[ ${INSTALL^^} == Y* ]]; then
         rm -fv $LARADOCK_PATH/nginx/sites/default.conf $LARADOCK_PATH/nginx/sites/*.example
         wget -N https://raw.githubusercontent.com/alirezamaleky/nginx-config/master/default.conf -P $LARADOCK_PATH/nginx/sites
         mv $LARADOCK_PATH/nginx/sites/default.conf $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
