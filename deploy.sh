@@ -238,8 +238,8 @@ _crontab() {
             sudo echo "@reboot root cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
         fi
 
-        if ! grep -q "$SCRIPT_PATH -t deploy -p $APP_PATH" /etc/crontab; then
-            sudo echo "0 5 * * * root  $SCRIPT_PATH -t deploy -p $APP_PATH" >>/etc/crontab
+        if ! grep -q "$SCRIPT_PATH --target deploy --path $APP_PATH" /etc/crontab; then
+            sudo echo "0 5 * * * root  $SCRIPT_PATH --target deploy --path $APP_PATH" >>/etc/crontab
         fi
     fi
 }
@@ -364,13 +364,13 @@ _git() {
         git -C $LARAVEL_PATH fetch origin master
         eval "git -C $LARAVEL_PATH diff origin/master --name-only" | while read file; do
             if [[ $file == "package.json" ]] || [[ $file == "package-lock.json" ]] || [[ $file == "yarn.lock" ]]; then
-                DEPLOY_SCRIPT+=_yarn,
+                DEPLOY_SCRIPT+="_yarn,"
             elif [[ $file == "composer.json" ]] || [[ $file == "composer.lock" ]]; then
-                DEPLOY_SCRIPT+=_composer,
+                DEPLOY_SCRIPT+="_composer,"
             elif [[ $file == "database/"* ]]; then
-                DEPLOY_SCRIPT+=_migrate,
+                DEPLOY_SCRIPT+="_migrate,"
             elif [[ $file == "resources/views/"* ]]; then
-                DEPLOY_SCRIPT+=_blade,
+                DEPLOY_SCRIPT+="_blade,"
             fi
         done
     fi
@@ -383,12 +383,12 @@ _git() {
 _up() {
     docker-compose up -d $CONTAINERS
     if [[ $TARGET == "deploy" ]]; then
-        COMPOSE_SCRIPT="sudo docker-compose exec -T workspace /var/www/deploy.sh -t docker -p $APP_PATH"
+        COMPOSE_SCRIPT="sudo docker-compose exec -T workspace /var/www/deploy.sh --target docker --path $APP_PATH"
         if [[ ! -z $FORCE_UPDATE ]]; then
-            COMPOSE_SCRIPT+=" -u"
+            COMPOSE_SCRIPT+=" --update"
         fi
         if [[ ! -z $DEPLOY_SCRIPT ]]; then
-            COMPOSE_SCRIPT+=" -s $DEPLOY_SCRIPT"
+            COMPOSE_SCRIPT+=" --scripts $DEPLOY_SCRIPT"
         fi
         eval $COMPOSE_SCRIPT
     else
