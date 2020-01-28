@@ -366,13 +366,13 @@ _git() {
     if [[ ${INSTALL^^} != Y* ]]; then
         git -C $LARAVEL_PATH fetch origin master
         DIFF_SCRIPT="git -C $LARAVEL_PATH diff master origin/master --name-only --"
-        if [[ $($DIFF_SCRIPT "yarn.lock package.json package-lock.json resources/fonts/ resources/images/ resources/js/ resources/scss/ resources/vue/") ]]; then
+        if [[ $($DIFF_SCRIPT yarn.lock package.json package-lock.json resources/fonts/ resources/images/ resources/js/ resources/scss/ resources/vue/) ]]; then
             DEPLOY_SCRIPT+="_yarn,"
-        elif [[ $($DIFF_SCRIPT "composer.lock composer.json") ]]; then
+        elif [[ $($DIFF_SCRIPT composer.lock composer.json) ]]; then
             DEPLOY_SCRIPT+="_composer,"
-        elif [[ $($DIFF_SCRIPT "database/") ]]; then
+        elif [[ $($DIFF_SCRIPT database/) ]]; then
             DEPLOY_SCRIPT+="_migrate,"
-        elif [[ $($DIFF_SCRIPT "resources/views/") ]]; then
+        elif [[ $($DIFF_SCRIPT resources/views/) ]]; then
             DEPLOY_SCRIPT+="_blade"
         fi
     fi
