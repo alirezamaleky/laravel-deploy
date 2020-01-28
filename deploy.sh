@@ -14,6 +14,7 @@ for ((i = 1; i <= $#; i++)); do
         FORCE_UPDATE="y"
     fi
 done
+echo $DEPLOY_SCRIPT
 
 _path() {
     if [[ -z $APP_PATH ]]; then
@@ -347,11 +348,11 @@ _git() {
         DIFF_SCRIPT="git -C $LARAVEL_PATH diff master origin/master --name-only --"
         if [[ $($DIFF_SCRIPT yarn.lock package.json package-lock.json resources/fonts/ resources/images/ resources/js/ resources/scss/ resources/vue/) ]]; then
             DEPLOY_SCRIPT+="_yarn,"
-        elif [[ $($DIFF_SCRIPT composer.lock composer.json) ]]; then
+        if [[ $($DIFF_SCRIPT composer.lock composer.json) ]]; then
             DEPLOY_SCRIPT+="_composer,"
-        elif [[ $($DIFF_SCRIPT database/) ]]; then
+        if [[ $($DIFF_SCRIPT database/) ]]; then
             DEPLOY_SCRIPT+="_backup,_migrate,"
-        elif [[ $($DIFF_SCRIPT resources/views/) ]]; then
+        if [[ $($DIFF_SCRIPT resources/views/) ]]; then
             DEPLOY_SCRIPT+="_blade"
         fi
     fi
@@ -544,7 +545,9 @@ _router() {
             _git
             _up
 
-            echo "Installation takes $((SECONDS - ELAPSED_SEC)) second."
+            if [[ $TARGET == "deploy" ]]; then
+                echo "Installation takes $((SECONDS - ELAPSED_SEC)) second."
+            fi
         else
             read -p "What is your OS [debian/ubuntu/centos/fedora]? " OS_DISTRO
 
