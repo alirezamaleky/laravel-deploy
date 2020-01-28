@@ -476,6 +476,7 @@ _laravel() {
     if [[ ${PRODUCTION^^} != Y* ]]; then
         php $LARAVEL_PATH/artisan ide-helper:generate
         php $LARAVEL_PATH/artisan ide-helper:models -N
+        mv -f _ide_helper*.php $LARAVEL_PATH
     fi
 }
 
