@@ -363,7 +363,7 @@ _git() {
     if [[ ${INSTALL^^} != Y* ]]; then
         git -C $LARAVEL_PATH fetch origin master
         eval "git -C $LARAVEL_PATH diff origin/master --name-only" | while read file; do
-            if ([[ $file == *"resources/"* ]] && [[ $file != *"resources/views/"* ]]) ||
+            if ([[ $file == *"resources/"* ]] && [[ $file != *"resources/views/"* ]] && [[ $file != *"resources/lang/"* ]]) ||
                 [[ $file == *"package.json"* ]] ||
                 [[ $file == *"package-lock.json"* ]] ||
                 [[ $file == *"yarn.lock"* ]]; then
