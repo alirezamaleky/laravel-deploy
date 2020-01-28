@@ -101,10 +101,10 @@ _env() {
         DB_DATABASE=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d "=" -f2)
         DB_USERNAME=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d "=" -f2)
         DB_PASSWORD=$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d "=" -f2)
+        REDIS_PASSWORD=$(grep REDIS_PASSWORD $LARAVEL_PATH/.env | cut -d "=" -f2)
     fi
     if [[ -f $LARADOCK_PATH/.env ]]; then
         DB_ROOT_PASSWORD=$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d "=" -f2)
-        REDIS_PASSWORD=$(grep REDIS_PASSWORD $LARADOCK_PATH/.env | cut -d "=" -f2)
     fi
     if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
         read -p "DOMAIN: " DOMAIN
@@ -174,13 +174,6 @@ _setenv() {
         sed -i "s|MAILU_INIT_ADMIN_USERNAME=.*|MAILU_INIT_ADMIN_USERNAME=$MAIL_USERNAME|" $LARADOCK_PATH/.env
         sed -i "s|MAILU_INIT_ADMIN_PASSWORD=.*|MAILU_INIT_ADMIN_PASSWORD=$MAIL_PASSWORD|" $LARADOCK_PATH/.env
         sed -i "s|REDIS_STORAGE_SERVER_PASSWORD=.*|REDIS_STORAGE_SERVER_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
-        sed -i "s|REDIS_RESULT_STORAGE_SERVER_PASSWORD=.*|REDIS_RESULT_STORAGE_SERVER_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
-        sed -i "s|REDIS_QUEUE_SERVER_PASSWORD=.*|REDIS_QUEUE_SERVER_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
-        if ! grep -q "REDIS_PASSWORD" $LARADOCK_PATH/.env; then
-            echo "REDIS_PASSWORD=$REDIS_PASSWORD" >>$LARADOCK_PATH/.env
-        else
-            sed -i "s|REDIS_PASSWORD=.*|REDIS_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
-        fi
 
         echo "alias nr='npm run'" >>$LARADOCK_PATH/workspace/aliases.sh
         echo "alias pa='php artisan'" >>$LARADOCK_PATH/workspace/aliases.sh
@@ -308,21 +301,19 @@ _nginx() {
 
 _redis() {
     if [[ ${INSTALL^^} == Y* ]]; then
-        sed -i "s|REDIS_PORT=.*|REDIS_PORT=127.0.0.1:6379|" $LARADOCK_PATH/.env
-        sed -i "s|bind 127.0.0.1|#bind 127.0.0.1|" $LARADOCK_PATH/redis/redis.conf
-        sed -i "s|build: ./redis|build:\n        context: ./redis\n        args:\n            REDIS_PASSWORD: \${REDIS_PASSWORD}|" $LARADOCK_PATH/docker-compose.yml
-        if ! grep -q "requirepass __REDIS_PASSWORD__" $LARADOCK_PATH/redis/redis.conf; then
-            echo "requirepass __REDIS_PASSWORD__" >>$LARADOCK_PATH/redis/redis.conf
+        sed -i "s|^REDIS_PORT=.*|REDIS_PORT=127.0.0.1:6379|" $LARADOCK_PATH/.env
+
+        sed -i "s|^bind|#bind|" $LARADOCK_PATH/redis/redis.conf
+        if ! grep -q "^requirepass $REDIS_PASSWORD" $LARADOCK_PATH/redis/redis.conf; then
+            echo -e "\nrequirepass $REDIS_PASSWORD" >>$LARADOCK_PATH/redis/redis.conf
+        else
+            sed -i "s|^requirepass.*|requirepass $REDIS_PASSWORD|" $LARADOCK_PATH/redis/redis.conf
         fi
-        REDIS_DOCKERFILE='FROM redis:latest'
-        REDIS_DOCKERFILE+='\n\nARG REDIS_PASSWORD=secret'
-        REDIS_DOCKERFILE+='\n\nRUN mkdir -p /usr/local/etc/redis'
-        REDIS_DOCKERFILE+='\nCOPY redis.conf /usr/local/etc/redis/redis.conf'
-        REDIS_DOCKERFILE+='\nRUN sed -i "s|__REDIS_PASSWORD__|'$REDIS_PASSWORD'|g" /usr/local/etc/redis/redis.conf'
-        REDIS_DOCKERFILE+='\n\nVOLUME /data'
-        REDIS_DOCKERFILE+='\n\nEXPOSE 6379'
-        REDIS_DOCKERFILE+='\n\nCMD ["redis-server", "/usr/local/etc/redis/redis.conf"]'
-        echo -e $REDIS_DOCKERFILE >$LARADOCK_PATH/redis/Dockerfile
+
+        sed -i "s|^#RUN|RUN|" $LARADOCK_PATH/redis/Dockerfile
+        sed -i "s|^#COPY|COPY|" $LARADOCK_PATH/redis/Dockerfile
+        sed -i 's|^CMD.*|CMD ["redis-server", "/usr/local/etc/redis/redis.conf"]|' $LARADOCK_PATH/redis/Dockerfile
+
         docker-compose build --no-cache redis
         docker-compose up -d redis
     fi
@@ -613,7 +604,7 @@ _router() {
                 eval "git config --global user.name '$GIT_NAME'"
                 eval "git config --global user.email '$GIT_EMAIL'"
                 eval "git config --global alias.mg '!git checkout master; git merge dev --no-edit --no-ff; git push --all; git checkout dev'"
-                eval "ssh-keygen -t rsa -b 4096 -C '$GIT_EMAIL' -f ~/.ssh/id_rsa.pub -q -N ''"
+                eval "ssh-keygen -t rsa -b 4096 -C '$GIT_EMAIL' -f ~/.ssh/id_rsa -q -N ''"
                 eval "cat ~/.ssh/id_rsa.pub"
                 read -p "Are you saved this informations?" OK
             fi
