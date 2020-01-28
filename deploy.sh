@@ -247,27 +247,6 @@ _crontab() {
     fi
 }
 
-_backup() {
-    if [[ ! -d "$LARAVEL_PATH/storage/app/databases" ]]; then
-        mkdir -p $LARAVEL_PATH/storage/app/databases
-    fi
-    if [[ $TARGET == "deploy" ]] && [[ ${INSTALL^^} != Y* ]] && [[ ${PRODUCTION^^} == Y* ]]; then
-        docker-compose exec -T workspace mysqldump \
-            --force \
-            --skip-lock-tables \
-            --host=$DB_ENGINE \
-            --port=$(grep DB_PORT $LARAVEL_PATH/.env | cut -d "=" -f2) \
-            -p$DB_PASSWORD \
-            --user=$DB_USERNAME \
-            --databases $DB_DATABASE \
-            --ignore-table=$DB_DATABASE.migrations \
-            --ignore-table=$DB_DATABASE.telescope_entries \
-            --ignore-table=$DB_DATABASE.telescope_entries_tags \
-            --ignore-table=$DB_DATABASE.telescope_monitoring \
-            --result-file=/var/www/$APP_PATH/storage/app/databases/$(date "+%y-%m-%d_%H:%M").sql
-    fi
-}
-
 _mysql() {
     if [[ $TARGET == "deploy" ]] && [[ ${INSTALL^^} == Y* ]] && [[ ${DB_WAITING^^} != Y* ]]; then
         if ! grep -q "max_allowed_packet=16M" $LARADOCK_PATH/$DB_ENGINE/my.cnf; then
@@ -282,12 +261,12 @@ _mysql() {
         SQL+="CREATE DATABASE IF NOT EXISTS $DB_DATABASE COLLATE 'utf8_general_ci';"
         SQL+="GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'%';"
         SQL+="FLUSH PRIVILEGES;"
-        IFS=';' read -r -a SQL_ARRAY <<<"$SQL"
+        IFS=';' read -r -a SQL_ARRAY <<<$SQL
 
         INITDB="$LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/$APP_PATH.sql"
         echo "" >$INITDB
         rm -fv $LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/*.example
-        for QUERY in "${SQL_ARRAY[@]}"; do
+        for QUERY in ${SQL_ARRAY[@]}; do
             echo "$QUERY;" >>$INITDB
         done
 
@@ -371,7 +350,7 @@ _git() {
         elif [[ $($DIFF_SCRIPT composer.lock composer.json) ]]; then
             DEPLOY_SCRIPT+="_composer,"
         elif [[ $($DIFF_SCRIPT database/) ]]; then
-            DEPLOY_SCRIPT+="_migrate,"
+            DEPLOY_SCRIPT+="_backup,_migrate,"
         elif [[ $($DIFF_SCRIPT resources/views/) ]]; then
             DEPLOY_SCRIPT+="_blade"
         fi
@@ -431,6 +410,27 @@ _composer() {
         composer --working-dir=$LARAVEL_PATH run-script "post-autoload-dump"
         composer --working-dir=$LARAVEL_PATH run-script "post-root-package-install"
         composer --working-dir=$LARAVEL_PATH run-script "post-create-project-cmd"
+    fi
+}
+
+_backup() {
+    if [[ ! -d "$LARAVEL_PATH/storage/app/databases" ]]; then
+        mkdir -p $LARAVEL_PATH/storage/app/databases
+    fi
+    if [[ ${INSTALL^^} != Y* ]] && [[ ${PRODUCTION^^} == Y* ]]; then
+        mysqldump \
+            --force \
+            --skip-lock-tables \
+            --host=$DB_ENGINE \
+            --port=$(grep DB_PORT $LARAVEL_PATH/.env | cut -d "=" -f2) \
+            -p$DB_PASSWORD \
+            --user=$DB_USERNAME \
+            --databases $DB_DATABASE \
+            --ignore-table=$DB_DATABASE.migrations \
+            --ignore-table=$DB_DATABASE.telescope_entries \
+            --ignore-table=$DB_DATABASE.telescope_entries_tags \
+            --ignore-table=$DB_DATABASE.telescope_monitoring \
+            --result-file=/var/www/$APP_PATH/storage/app/databases/$(date "+%y-%m-%d_%H:%M").sql
     fi
 }
 
@@ -504,18 +504,19 @@ _permission() {
 }
 
 _router() {
-
     ELAPSED_SEC=$SECONDS
+
     if [[ $TARGET == "docker" ]]; then
         if [[ ${FORCE_UPDATE^^} == Y* ]] || [[ ${INSTALL^^} == Y* ]]; then
             _yarn
             _composer
+            _backup
             _migrate
             _blade
         else
-            IFS=',' read -r -a SCRIPT_ARRAY <<<"$DEPLOY_SCRIPT"
-            for QUERY in "${SCRIPT_ARRAY[@]}"; do
-                $QUERY
+            IFS=',' read -r -a SCRIPT_ARRAY <<<$DEPLOY_SCRIPT
+            for SCRIPT in ${SCRIPT_ARRAY[@]}; do
+                $SCRIPT
             done
         fi
         _optimize
@@ -536,7 +537,6 @@ _router() {
             _laradock
             _setenv
             _crontab
-            _backup
             _mysql
             _nginx
             _redis
@@ -581,7 +581,7 @@ _router() {
             fi
 
             IFS=' ' read -r -a PACKAGE_ARRAY <<<"apache2 apache nginx"
-            for PACKAGE in "${PACKAGE_ARRAY[@]}"; do
+            for PACKAGE in ${PACKAGE_ARRAY[@]}; do
                 eval "$PKM remove -y $PACKAGE"
             done
 
@@ -590,7 +590,7 @@ _router() {
             eval "$PKM autoremove -y"
 
             IFS=' ' read -r -a PACKAGE_ARRAY <<<"cron curl htop make nano tmux unrar unzip vim wget"
-            for PACKAGE in "${PACKAGE_ARRAY[@]}"; do
+            for PACKAGE in ${PACKAGE_ARRAY[@]}; do
                 eval "$PKM install -y $PACKAGE"
             done
 
