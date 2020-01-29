@@ -236,6 +236,7 @@ _crontab() {
     fi
 
     if [[ ${PRODUCTION^^} == Y* ]]; then
+        sudo systemctl enable cron
         if ! grep -q "cd $LARADOCK_PATH && docker-compose up" /etc/crontab; then
             sudo echo "@reboot root cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
         fi
@@ -295,6 +296,10 @@ _nginx() {
         mv $LARADOCK_PATH/nginx/sites/default.conf $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
         sed -i "s|/var/www/public;|/var/www/$APP_PATH/public;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
         sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
+
+        if ! grep -q "$DOMAIN" /etc/hosts; then
+            sudo bash -c "echo -e '127.0.0.1 $DOMAIN' >>/etc/hosts"
+        fi
 
         docker-compose build --no-cache nginx
         docker-compose up -d nginx
