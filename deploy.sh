@@ -347,7 +347,7 @@ _git() {
     if [[ ${INSTALL^^} != Y* ]]; then
         git -C $LARAVEL_PATH fetch origin master
         DIFF_SCRIPT="git -C $LARAVEL_PATH diff master origin/master --name-only --"
-        if [[ $($DIFF_SCRIPT yarn.lock package.json package-lock.json resources/fonts/ resources/images/ resources/js/ resources/scss/ resources/vue/) ]]; then
+        if [[ $($DIFF_SCRIPT yarn.lock package.json package-lock.json resources/fonts/ resources/images/ resources/js/ resources/css/ resources/scss/ resources/sass/ resources/vue/) ]]; then
             DEPLOY_SCRIPT+="_yarn,"
         fi
         if [[ $($DIFF_SCRIPT composer.lock composer.json) ]]; then
