@@ -298,7 +298,7 @@ _nginx() {
         sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
 
         if ! grep -q "$DOMAIN" /etc/hosts; then
-            sudo bash -c "echo -e '127.0.0.1 $DOMAIN' >>/etc/hosts"
+            sudo bash -c "echo '127.0.0.1 $DOMAIN' >>/etc/hosts"
         fi
 
         docker-compose build --no-cache nginx
