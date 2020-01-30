@@ -387,11 +387,7 @@ _yarn() {
     if [[ ${PRODUCTION^^} == Y* ]]; then
         yarn --cwd $LARAVEL_PATH install --production --pure-lockfile --non-interactive
     else
-        if [[ ${INSTALL^^} == Y* ]]; then
-            yarn --cwd $LARAVEL_PATH install
-        else
-            yarn --cwd $LARAVEL_PATH upgrade
-        fi
+        yarn --cwd $LARAVEL_PATH install
     fi
     yarn --cwd $LARAVEL_PATH run prod
 }
@@ -403,11 +399,7 @@ _composer() {
     if [[ ${PRODUCTION^^} == Y* ]]; then
         composer --working-dir=$LARAVEL_PATH install --optimize-autoloader --no-dev --no-interaction --prefer-dist
     else
-        if [[ ${INSTALL^^} == Y* ]]; then
-            composer --working-dir=$LARAVEL_PATH install
-        else
-            composer --working-dir=$LARAVEL_PATH update
-        fi
+        composer --working-dir=$LARAVEL_PATH install
     fi
 
     if [[ ${INSTALL^^} == Y* ]]; then
