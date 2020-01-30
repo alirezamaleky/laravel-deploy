@@ -101,9 +101,9 @@ _env() {
         DB_DATABASE=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d "=" -f2)
         DB_USERNAME=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d "=" -f2)
         DB_PASSWORD=$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d "=" -f2)
-        REDIS_PASSWORD=$(grep REDIS_PASSWORD $LARAVEL_PATH/.env | cut -d "=" -f2)
     fi
     if [[ -f $LARADOCK_PATH/.env ]]; then
+        REDIS_PASSWORD=$(grep REDIS_STORAGE_SERVER_PASSWORD $LARADOCK_PATH/.env | cut -d "=" -f2)
         DB_ROOT_PASSWORD=$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d "=" -f2)
     fi
     if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
@@ -497,7 +497,7 @@ _queue() {
 }
 
 _permission() {
-    if [[ ${INSTALL^^} == Y* ]]; then
+    if [[ ${INSTALL^^} == Y* ]] && [[ ${PRODUCTION^^} != Y* ]]; then
         killall find
         find $LARAVEL_PATH -type f -exec chmod 644 {} \;
         find $LARAVEL_PATH -type d -exec chmod 755 {} \;
