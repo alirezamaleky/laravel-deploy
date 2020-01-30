@@ -311,7 +311,7 @@ _redis() {
         sed -i "s|^REDIS_PORT=.*|REDIS_PORT=127.0.0.1:6379|" $LARADOCK_PATH/.env
 
         sed -i "s|^bind|#bind|" $LARADOCK_PATH/redis/redis.conf
-        if ! grep -q "^requirepass $REDIS_PASSWORD" $LARADOCK_PATH/redis/redis.conf; then
+        if ! grep -q "^requirepass" $LARADOCK_PATH/redis/redis.conf; then
             echo -e "\nrequirepass $REDIS_PASSWORD" >>$LARADOCK_PATH/redis/redis.conf
         else
             sed -i "s|^requirepass.*|requirepass $REDIS_PASSWORD|" $LARADOCK_PATH/redis/redis.conf
