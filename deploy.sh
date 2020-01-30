@@ -236,7 +236,7 @@ _crontab() {
     fi
 
     if [[ ${PRODUCTION^^} == Y* ]]; then
-        sudo systemctl enable cron
+        sudo systemctl enable cron || sudo systemctl enable crond
         if ! grep -q "cd $LARADOCK_PATH && docker-compose up" /etc/crontab; then
             sudo echo "@reboot root cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
         fi
