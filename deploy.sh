@@ -61,7 +61,7 @@ if [[ "$*" == *-f* ]] || [[ "$*" == *--format* ]]; then
     _format
 fi
 
-_env() {
+_getenv() {
     CONTAINERS="nginx mariadb redis"
     if [[ ${PRODUCTION^^} != Y* ]]; then
         CONTAINERS+=" phpmyadmin"
@@ -109,11 +109,14 @@ _env() {
     if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
         read -p "DOMAIN: " DOMAIN
         read -e -p "APP_NAME: " -i "laravel" APP_NAME
-        read -e -p "MAIL_USERNAME: " -i "info@$DOMAIN" MAIL_USERNAME
-        read -e -p "MAIL_ENCRYPTION: " -i "tls" MAIL_ENCRYPTION
         read -e -p "PMA_PORT: " -i "8001" PMA_PORT
-        # read -p "MAILU_RECAPTCHA_PUBLIC_KEY: " MAILU_RECAPTCHA_PUBLIC_KEY
-        # read -p "MAILU_RECAPTCHA_PRIVATE_KEY: " MAILU_RECAPTCHA_PRIVATE_KEY
+
+        if [[ ${PRODUCTION^^} == Y* ]]; then
+            read -e -p "MAIL_USERNAME: " -i "info@$DOMAIN" MAIL_USERNAME
+            read -e -p "MAIL_ENCRYPTION: " -i "tls" MAIL_ENCRYPTION
+            # read -p "MAILU_RECAPTCHA_PUBLIC_KEY: " MAILU_RECAPTCHA_PUBLIC_KEY
+            # read -p "MAILU_RECAPTCHA_PRIVATE_KEY: " MAILU_RECAPTCHA_PRIVATE_KEY
+        fi
 
         DB_DATABASE="${APP_PATH}_db"
         DB_USERNAME="${APP_PATH}_user"
@@ -126,17 +129,9 @@ _env() {
         if [[ ${#REDIS_PASSWORD} < 15 ]]; then
             REDIS_PASSWORD=$(openssl rand -base64 15)
         fi
-
-        echo "DB_DATABASE=$DB_DATABASE"
-        echo "DB_USERNAME=$DB_USERNAME"
-        echo "DB_PASSWORD=$DB_PASSWORD"
-        echo "DB_ROOT_PASSWORD=$DB_ROOT_PASSWORD"
-        echo "REDIS_PASSWORD=$REDIS_PASSWORD"
-        echo "PMA_PORT=$PMA_PORT"
-        read -p "Are you saved this informations?" OK
     fi
 }
-_env
+_getenv
 
 _laradock() {
     if [[ ! -d "$LARADOCK_PATH" ]]; then
@@ -145,6 +140,10 @@ _laradock() {
             mv $LARAVEL_PATH/laradock-master $LARADOCK_PATH &&
             rm -fv $LARAVEL_PATH/master.zip
     fi
+
+    echo "alias nr='npm run'" >>$LARADOCK_PATH/workspace/aliases.sh
+    echo "alias pa='php artisan'" >>$LARADOCK_PATH/workspace/aliases.sh
+
     cd $LARADOCK_PATH
 }
 
@@ -166,19 +165,19 @@ _setenv() {
         sed -i "s|PMA_USER=.*|PMA_USER=root|" $LARADOCK_PATH/.env
         sed -i "s|PMA_PASSWORD=.*|PMA_PASSWORD=$DB_ROOT_PASSWORD|" $LARADOCK_PATH/.env
         sed -i "s|PMA_ROOT_PASSWORD=.*|PMA_ROOT_PASSWORD=$DB_ROOT_PASSWORD|" $LARADOCK_PATH/.env
-        sed -i "s|MAILU_DOMAIN=.*|MAILU_DOMAIN=$DOMAIN|" $LARADOCK_PATH/.env
-        sed -i "s|MAILU_RECAPTCHA_PUBLIC_KEY=.*|MAILU_RECAPTCHA_PUBLIC_KEY=$MAILU_RECAPTCHA_PUBLIC_KEY|" $LARADOCK_PATH/.env
-        sed -i "s|MAILU_RECAPTCHA_PRIVATE_KEY=.*|MAILU_RECAPTCHA_PRIVATE_KEY=$MAILU_RECAPTCHA_PRIVATE_KEY|" $LARADOCK_PATH/.env
-        sed -i "s|MAILU_HOSTNAMES=.*|MAILU_HOSTNAMES=$MAIL_HOST|" $LARADOCK_PATH/.env
-        sed -i "s|MAILU_SECRET_KEY=.*|MAILU_SECRET_KEY=$(openssl rand -base64 16)|" $LARADOCK_PATH/.env
-        sed -i "s|MAILU_INIT_ADMIN_USERNAME=.*|MAILU_INIT_ADMIN_USERNAME=$MAIL_USERNAME|" $LARADOCK_PATH/.env
-        sed -i "s|MAILU_INIT_ADMIN_PASSWORD=.*|MAILU_INIT_ADMIN_PASSWORD=$MAIL_PASSWORD|" $LARADOCK_PATH/.env
         sed -i "s|REDIS_STORAGE_SERVER_PASSWORD=.*|REDIS_STORAGE_SERVER_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
         sed -i "s|REDIS_RESULT_STORAGE_SERVER_PASSWORD=.*|REDIS_RESULT_STORAGE_SERVER_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
         sed -i "s|REDIS_QUEUE_SERVER_PASSWORD=.*|REDIS_QUEUE_SERVER_PASSWORD=$REDIS_PASSWORD|" $LARADOCK_PATH/.env
 
-        echo "alias nr='npm run'" >>$LARADOCK_PATH/workspace/aliases.sh
-        echo "alias pa='php artisan'" >>$LARADOCK_PATH/workspace/aliases.sh
+        if [[ ${PRODUCTION^^} == Y* ]]; then
+            sed -i "s|MAILU_DOMAIN=.*|MAILU_DOMAIN=$DOMAIN|" $LARADOCK_PATH/.env
+            sed -i "s|MAILU_RECAPTCHA_PUBLIC_KEY=.*|MAILU_RECAPTCHA_PUBLIC_KEY=$MAILU_RECAPTCHA_PUBLIC_KEY|" $LARADOCK_PATH/.env
+            sed -i "s|MAILU_RECAPTCHA_PRIVATE_KEY=.*|MAILU_RECAPTCHA_PRIVATE_KEY=$MAILU_RECAPTCHA_PRIVATE_KEY|" $LARADOCK_PATH/.env
+            sed -i "s|MAILU_HOSTNAMES=.*|MAILU_HOSTNAMES=$MAIL_HOST|" $LARADOCK_PATH/.env
+            sed -i "s|MAILU_SECRET_KEY=.*|MAILU_SECRET_KEY=$(openssl rand -base64 16)|" $LARADOCK_PATH/.env
+            sed -i "s|MAILU_INIT_ADMIN_USERNAME=.*|MAILU_INIT_ADMIN_USERNAME=$MAIL_USERNAME|" $LARADOCK_PATH/.env
+            sed -i "s|MAILU_INIT_ADMIN_PASSWORD=.*|MAILU_INIT_ADMIN_PASSWORD=$MAIL_PASSWORD|" $LARADOCK_PATH/.env
+        fi
     fi
 
     if [[ ${INSTALL^^} == Y* ]]; then
@@ -187,6 +186,7 @@ _setenv() {
         fi
 
         if [[ ${PRODUCTION^^} == Y* ]]; then
+            sed -i "s|APP_URL=.*|APP_URL=https://$DOMAIN|" $LARAVEL_PATH/.env
             sed -i "s|APP_ENV=.*|APP_ENV=production|" $LARAVEL_PATH/.env
             sed -i "s|APP_DEBUG=.*|APP_DEBUG=false|" $LARAVEL_PATH/.env
             sed -i "s|MAIL_HOST=.*|MAIL_HOST=$MAIL_HOST|" $LARAVEL_PATH/.env
@@ -195,6 +195,7 @@ _setenv() {
             sed -i "s|MAIL_ENCRYPTION=.*|MAIL_ENCRYPTION=$MAIL_ENCRYPTION|" $LARAVEL_PATH/.env
             sed -i "s|RESPONSE_CACHE_ENABLED=.*|RESPONSE_CACHE_ENABLED=true|" $LARAVEL_PATH/.env
         else
+            sed -i "s|APP_URL=.*|APP_URL=http://$DOMAIN|" $LARAVEL_PATH/.env
             sed -i "s|APP_ENV=.*|APP_ENV=local|" $LARAVEL_PATH/.env
             sed -i "s|APP_DEBUG=.*|APP_DEBUG=true|" $LARAVEL_PATH/.env
             sed -i "s|RESPONSE_CACHE_ENABLED=.*|RESPONSE_CACHE_ENABLED=false|" $LARAVEL_PATH/.env
@@ -209,7 +210,6 @@ _setenv() {
         sed -i "s|QUEUE_CONNECTION=.*|QUEUE_CONNECTION=sync|" $LARAVEL_PATH/.env
         sed -i "s|SESSION_DRIVER=.*|SESSION_DRIVER=redis|" $LARAVEL_PATH/.env
 
-        sed -i "s|APP_URL=.*|APP_URL=https://$DOMAIN|" $LARAVEL_PATH/.env
         sed -i "s|APP_NAME=.*|APP_NAME=$APP_NAME|" $LARAVEL_PATH/.env
         sed -i "s|DB_DATABASE=.*|DB_DATABASE=$DB_DATABASE|" $LARAVEL_PATH/.env
         sed -i "s|DB_USERNAME=.*|DB_USERNAME=$DB_USERNAME|" $LARAVEL_PATH/.env
@@ -238,17 +238,21 @@ _crontab() {
     if [[ ${PRODUCTION^^} == Y* ]]; then
         sudo systemctl enable cron || sudo systemctl enable crond
         if ! grep -q "cd $LARADOCK_PATH && docker-compose up" /etc/crontab; then
-            sudo echo "@reboot root cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
+            echo "@reboot root cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
         fi
 
         if ! grep -q "$SCRIPT_PATH --target deploy --path $APP_PATH" /etc/crontab; then
-            sudo echo "0 5 * * * root  $SCRIPT_PATH --target deploy --path $APP_PATH" >>/etc/crontab
+            echo "0 5 * * * root  $SCRIPT_PATH --target deploy --path $APP_PATH" >>/etc/crontab
         fi
     fi
 }
 
 _mysql() {
     if [[ $TARGET == "deploy" ]] && [[ ${INSTALL^^} == Y* ]] && [[ ${DB_WAITING^^} != Y* ]]; then
+        if [[ ${INSTALL^^} == Y* ]] && [[ ${RESET_DATABASE^^} == Y* ]]; then
+            sudo rm -fvr ~/.laradock/data/$DB_ENGINE
+        fi
+
         if ! grep -q "max_allowed_packet=16M" $LARADOCK_PATH/$DB_ENGINE/my.cnf; then
             echo "" >$LARADOCK_PATH/$DB_ENGINE/my.cnf
             echo "[mysqld]" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
@@ -263,16 +267,11 @@ _mysql() {
         SQL+="FLUSH PRIVILEGES;"
         IFS=';' read -r -a SQL_ARRAY <<<$SQL
 
-        INITDB="$LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/$APP_PATH.sql"
-        echo "" >$INITDB
         rm -fv $LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/*.example
         for QUERY in "${SQL_ARRAY[@]}"; do
-            echo "$QUERY;" >>$INITDB
+            echo "$QUERY;" >"$LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/$APP_PATH.sql"
         done
 
-        if [[ ${INSTALL^^} == Y* ]] && [[ ${RESET_DATABASE^^} == Y* ]]; then
-            sudo rm -fvr ~/.laradock/data/$DB_ENGINE
-        fi
         docker-compose build --no-cache $DB_ENGINE
         docker-compose up -d $DB_ENGINE
     fi
