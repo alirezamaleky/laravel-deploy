@@ -386,7 +386,7 @@ _yarn() {
 
 _composer() {
     killall composer
-    composer --working-dir=$LARAVEL_PATH global require hirak/prestissimo
+    composer global require hirak/prestissimo
 
     if [[ ${PRODUCTION^^} == Y* ]]; then
         composer --working-dir=$LARAVEL_PATH install --optimize-autoloader --no-dev --no-interaction --prefer-dist
