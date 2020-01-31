@@ -100,7 +100,7 @@ _getenv() {
 
     if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
         read -e -p "DOMAIN: " -i "$APP_PATH." DOMAIN
-        read -e -p "APP_NAME: " -i "laravel" APP_NAME
+        read -e -p "APP_NAME: " -i "$APP_PATH" APP_NAME
         read -e -p "PMA_PORT: " -i "8001" PMA_PORT
 
         if [[ ${PRODUCTION^^} == Y* ]]; then
