@@ -62,7 +62,8 @@ if [[ "$*" == *-f* ]] || [[ "$*" == *--format* ]]; then
 fi
 
 _getenv() {
-    CONTAINERS="nginx mariadb redis"
+    DB_ENGINE=mariadb
+    CONTAINERS="nginx $DB_ENGINE redis"
     if [[ ${PRODUCTION^^} != Y* ]]; then
         CONTAINERS+=" phpmyadmin"
     # else
@@ -71,30 +72,19 @@ _getenv() {
 
     if [[ ! -d "$LARADOCK_PATH" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "$LARAVEL_PATH/node_modules" ]]; then
         if [[ -z $INSTALL ]] && [[ $TARGET != "docker" ]] && [[ -f "$LARAVEL_PATH/.env" ]] && [[ -f "$LARADOCK_PATH/.env" ]]; then
-            read -p "Is this first install? [y/n] " INSTALL
+            read -e -p "Is this first install? [y/n] " -i "y" INSTALL
         fi
         INSTALL=${INSTALL:-y}
     fi
 
-    if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
+    if [[ -f $LARAVEL_PATH/.env ]] && [[ $(grep APP_ENV $LARAVEL_PATH/.env | cut -d "=" -f2) == "production" ]]; then
+        PRODUCTION="y"
+    elif [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
         read -p "Is the project in production? [y/n] " PRODUCTION
-    else
-        if [[ -f $LARAVEL_PATH/.env ]]; then
-            if [[ $(grep APP_ENV $LARAVEL_PATH/.env | cut -d "=" -f2) == "production" ]]; then
-                PRODUCTION="y"
-            fi
-        elif [[ $TARGET != "docker" ]]; then
-            read -p "Is the project in production? [y/n] " PRODUCTION
-        fi
     fi
 
     if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]] && [[ ${RESET_WORKSPACE^^} != Y* ]]; then
-        read -p "RESET_DATABASE [y/n]? " RESET_DATABASE
-    fi
-    if [[ $CONTAINERS == *"mariadb"* ]]; then
-        DB_ENGINE=mariadb
-    else
-        DB_ENGINE=mysql
+        read -e -p "RESET_DATABASE [y/n]? " -i "n" RESET_DATABASE
     fi
 
     if [[ -f $LARAVEL_PATH/.env ]]; then
@@ -106,6 +96,7 @@ _getenv() {
         REDIS_PASSWORD=$(grep REDIS_STORAGE_SERVER_PASSWORD $LARADOCK_PATH/.env | cut -d "=" -f2)
         DB_ROOT_PASSWORD=$(grep ${DB_ENGINE^^}_ROOT_PASSWORD $LARADOCK_PATH/.env | cut -d "=" -f2)
     fi
+
     if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
         read -p "DOMAIN: " DOMAIN
         read -e -p "APP_NAME: " -i "laravel" APP_NAME
@@ -114,8 +105,8 @@ _getenv() {
         if [[ ${PRODUCTION^^} == Y* ]]; then
             read -e -p "MAIL_USERNAME: " -i "info@$DOMAIN" MAIL_USERNAME
             read -e -p "MAIL_ENCRYPTION: " -i "tls" MAIL_ENCRYPTION
-            # read -p "MAILU_RECAPTCHA_PUBLIC_KEY: " MAILU_RECAPTCHA_PUBLIC_KEY
-            # read -p "MAILU_RECAPTCHA_PRIVATE_KEY: " MAILU_RECAPTCHA_PRIVATE_KEY
+        else
+            read -e -p "WRITE_CRONTAB: " -i "y" WRITE_CRONTAB
         fi
 
         DB_DATABASE="${APP_PATH}_db"
@@ -171,8 +162,6 @@ _setenv() {
 
         if [[ ${PRODUCTION^^} == Y* ]]; then
             sed -i "s|MAILU_DOMAIN=.*|MAILU_DOMAIN=$DOMAIN|" $LARADOCK_PATH/.env
-            sed -i "s|MAILU_RECAPTCHA_PUBLIC_KEY=.*|MAILU_RECAPTCHA_PUBLIC_KEY=$MAILU_RECAPTCHA_PUBLIC_KEY|" $LARADOCK_PATH/.env
-            sed -i "s|MAILU_RECAPTCHA_PRIVATE_KEY=.*|MAILU_RECAPTCHA_PRIVATE_KEY=$MAILU_RECAPTCHA_PRIVATE_KEY|" $LARADOCK_PATH/.env
             sed -i "s|MAILU_HOSTNAMES=.*|MAILU_HOSTNAMES=$MAIL_HOST|" $LARADOCK_PATH/.env
             sed -i "s|MAILU_SECRET_KEY=.*|MAILU_SECRET_KEY=$(openssl rand -base64 16)|" $LARADOCK_PATH/.env
             sed -i "s|MAILU_INIT_ADMIN_USERNAME=.*|MAILU_INIT_ADMIN_USERNAME=$MAIL_USERNAME|" $LARADOCK_PATH/.env
@@ -235,7 +224,7 @@ _crontab() {
         echo "" >$LARADOCK_PATH/workspace/crontab/laradock
     fi
 
-    if [[ ${PRODUCTION^^} == Y* ]]; then
+    if [[ ${PRODUCTION^^} == Y* ]] || [[ ${WRITE_CRONTAB^^} == Y* ]]; then
         sudo systemctl enable cron || sudo systemctl enable crond
         if ! grep -q "cd $LARADOCK_PATH && docker-compose up" /etc/crontab; then
             echo "@reboot root cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
