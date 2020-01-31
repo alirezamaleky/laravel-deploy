@@ -99,7 +99,7 @@ _getenv() {
     fi
 
     if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
-        read -p "DOMAIN: " DOMAIN
+        read -e -p "DOMAIN: " -i "$APP_PATH." DOMAIN
         read -e -p "APP_NAME: " -i "laravel" APP_NAME
         read -e -p "PMA_PORT: " -i "8001" PMA_PORT
 
@@ -288,6 +288,8 @@ _nginx() {
         mv $LARADOCK_PATH/nginx/sites/default.conf $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
         sed -i "s|/var/www/public;|/var/www/$APP_PATH/public;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
         sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
+
+        sed -i "s|openssl|#openssl|" $LARADOCK_PATH/nginx/startup.sh
 
         if ! grep -q "$DOMAIN" /etc/hosts; then
             sudo bash -c "echo '127.0.0.1 $DOMAIN' >>/etc/hosts"
