@@ -44,6 +44,7 @@ _format() {
         RESET_WORKSPACE="y"
 
         read -p "RESET_LARADOCK [y/n]? " RESET_LARADOCK
+        echo $RESET_LARADOCK
         if [[ ${RESET_LARADOCK^^} == Y* ]]; then
             if [[ ! -z $(docker container ls -aq) ]]; then
                 docker container stop $(docker container ls -aq)
@@ -106,7 +107,7 @@ _getenv() {
             read -e -p "MAIL_USERNAME: " -i "info@$DOMAIN" MAIL_USERNAME
             read -e -p "MAIL_ENCRYPTION: " -i "tls" MAIL_ENCRYPTION
         else
-            read -e -p "WRITE_CRONTAB: " -i "y" WRITE_CRONTAB
+            read -p "Do you want auto-deploy? [y/n] " AUTO_DEPLOY
         fi
 
         DB_DATABASE="${APP_PATH}_db"
@@ -132,10 +133,13 @@ _laradock() {
             rm -fv $LARAVEL_PATH/master.zip
     fi
 
-    echo "alias nr='npm run'" >>$LARADOCK_PATH/workspace/aliases.sh
-    echo "alias pa='php artisan'" >>$LARADOCK_PATH/workspace/aliases.sh
-
-    cd $LARADOCK_PATH
+    if [[ -d $LARADOCK_PATH ]]; then
+        echo "alias nr='npm run'" >>$LARADOCK_PATH/workspace/aliases.sh
+        echo "alias pa='php artisan'" >>$LARADOCK_PATH/workspace/aliases.sh
+        cd $LARADOCK_PATH
+    else
+        _laradock
+    fi
 }
 
 _setenv() {
@@ -224,7 +228,7 @@ _crontab() {
         echo "" >$LARADOCK_PATH/workspace/crontab/laradock
     fi
 
-    if [[ ${PRODUCTION^^} == Y* ]] || [[ ${WRITE_CRONTAB^^} == Y* ]]; then
+    if [[ ${PRODUCTION^^} == Y* ]] || [[ ${AUTO_DEPLOY^^} == Y* ]]; then
         sudo systemctl enable cron || sudo systemctl enable crond
         if ! grep -q "cd $LARADOCK_PATH && docker-compose up" /etc/crontab; then
             echo "@reboot root cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
@@ -237,41 +241,41 @@ _crontab() {
 }
 
 _mysql() {
-    if [[ $TARGET == "deploy" ]] && [[ ${INSTALL^^} == Y* ]] && [[ ${DB_WAITING^^} != Y* ]]; then
-        if [[ ${INSTALL^^} == Y* ]] && [[ ${RESET_DATABASE^^} == Y* ]]; then
-            sudo rm -fvr ~/.laradock/data/$DB_ENGINE
+    if [[ $TARGET == "deploy" ]]; then
+        if [[ ${DB_WAITING^^} != Y* ]]; then
+            if [[ ${RESET_DATABASE^^} == Y* ]]; then
+                sudo rm -fvr ~/.laradock/data/$DB_ENGINE
+                docker-compose build --no-cache $DB_ENGINE
+            fi
+            docker-compose up -d $DB_ENGINE
+
+            if ! grep -q "max_allowed_packet=16M" $LARADOCK_PATH/$DB_ENGINE/my.cnf; then
+                echo "[mysqld]" >$LARADOCK_PATH/$DB_ENGINE/my.cnf
+                echo "max_allowed_packet=16M" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
+            fi
+
+            if [[ ! -f "$LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/$APP_PATH.sql" ]]; then
+                rm -fv $LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/*.example
+                SQL="DROP USER IF EXISTS 'default'@'%';"
+                SQL+="CREATE USER IF NOT EXISTS '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';"
+                SQL+="ALTER USER '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';"
+                SQL+="CREATE DATABASE IF NOT EXISTS $DB_DATABASE COLLATE 'utf8_general_ci';"
+                SQL+="GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'%';"
+                SQL+="FLUSH PRIVILEGES;"
+                IFS=';' read -r -a SQL_ARRAY <<<$SQL
+                INITDB_FILE="$LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/$APP_PATH.sql"
+                rm -fv $INITDB_FILE
+                for QUERY in "${SQL_ARRAY[@]}"; do
+                    echo "$QUERY;" >>$INITDB_FILE
+                done
+            fi
         fi
 
-        if ! grep -q "max_allowed_packet=16M" $LARADOCK_PATH/$DB_ENGINE/my.cnf; then
-            echo "" >$LARADOCK_PATH/$DB_ENGINE/my.cnf
-            echo "[mysqld]" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
-            echo "max_allowed_packet=16M" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
-        fi
-
-        SQL="DROP USER IF EXISTS 'default'@'%';"
-        SQL+="CREATE USER IF NOT EXISTS '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';"
-        SQL+="ALTER USER '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';"
-        SQL+="CREATE DATABASE IF NOT EXISTS $DB_DATABASE COLLATE 'utf8_general_ci';"
-        SQL+="GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'%';"
-        SQL+="FLUSH PRIVILEGES;"
-        IFS=';' read -r -a SQL_ARRAY <<<$SQL
-
-        rm -fv $LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/*.example
-        for QUERY in "${SQL_ARRAY[@]}"; do
-            echo "$QUERY;" >"$LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/$APP_PATH.sql"
-        done
-
-        docker-compose build --no-cache $DB_ENGINE
-        docker-compose up -d $DB_ENGINE
-    fi
-
-    if [[ ${INSTALL^^} == Y* ]]; then
         if ! eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'SHOW DATABASES;'"; then
             DB_WAITING="y"
             sleep 5
             _mysql
         else
-            unset DB_WAITING
             eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'source /docker-entrypoint-initdb.d/$APP_PATH.sql;'"
         fi
     fi
