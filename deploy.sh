@@ -379,7 +379,7 @@ _up() {
     docker-compose up -d $CONTAINERS
     if [[ $TARGET == "deploy" ]]; then
         COMPOSE_SCRIPT="sudo docker-compose exec -T workspace /var/www/deploy.sh --target docker --path $APP_PATH"
-        if [[ ! -z $FORCE_UPDATE ]]; then
+        if [[ ${FORCE_UPDATE^^} == Y* ]]; then
             COMPOSE_SCRIPT+=" --update"
         fi
         if [[ ! -z $DEPLOY_SCRIPT ]]; then
