@@ -274,15 +274,18 @@ _mysql() {
                 for QUERY in "${SQL_ARRAY[@]}"; do
                     echo "$QUERY;" >>$INITDB_FILE
                 done
+                RELOAD_DATABASE="y"
             fi
         fi
 
-        if ! eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'SHOW DATABASES;'"; then
-            DB_WAITING="y"
-            sleep 5
-            _mysql
-        else
-            eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'source /docker-entrypoint-initdb.d/$APP_PATH.sql;'"
+        if [[ ${RELOAD_DATABASE^^} == Y* ]]; then
+            if ! eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'SHOW DATABASES;'"; then
+                DB_WAITING="y"
+                sleep 5
+                _mysql
+            else
+                eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'source /docker-entrypoint-initdb.d/$APP_PATH.sql;'"
+            fi
         fi
     fi
 }
