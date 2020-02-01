@@ -237,11 +237,11 @@ _crontab() {
     if [[ ${PRODUCTION^^} == Y* ]] || [[ ${AUTO_DEPLOY^^} == Y* ]]; then
         sudo systemctl enable cron || sudo systemctl enable crond
         if ! grep -q "cd $LARADOCK_PATH && docker-compose up" /etc/crontab; then
-            echo "@reboot root cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS" >>/etc/crontab
+            echo "@reboot root cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS >>/dev/null 2>&1" >>/etc/crontab
         fi
 
         if ! grep -q "$SCRIPT_PATH --target deploy --path $APP_PATH" /etc/crontab; then
-            echo "0 5 * * * root  $SCRIPT_PATH --target deploy --path $APP_PATH" >>/etc/crontab
+            echo "0 5 * * * root  $SCRIPT_PATH --target deploy --path $APP_PATH >>/dev/null 2>&1" >>/etc/crontab
         fi
     fi
 }
