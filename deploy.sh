@@ -12,6 +12,12 @@ for ((i = 1; i <= $#; i++)); do
         DEPLOY_SCRIPT=${!i}
     elif [[ ${!i} = "-u" ]] || [[ ${!i} = "--update" ]]; then
         FORCE_UPDATE="y"
+    elif [[ ${!i} = "-h" ]] || [[ ${!i} = "--help" ]]; then
+        echo "-p --path <path>    (folder path)"
+        echo "-t --target deploy  (optional, if not set just workspace will load)"
+        echo "-u --update         (force install project libraries even if not changed.)"
+        echo "-f --format         (remove everything and fresh install docker and project)"
+        exit
     fi
 done
 
