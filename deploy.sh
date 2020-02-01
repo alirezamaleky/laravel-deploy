@@ -112,8 +112,10 @@ _getenv() {
         if [[ ${PRODUCTION^^} == Y* ]]; then
             read -e -p "MAIL_USERNAME: " -i "info@$DOMAIN" MAIL_USERNAME
             read -e -p "MAIL_ENCRYPTION: " -i "tls" MAIL_ENCRYPTION
-        else
-            read -p "Do you want auto-deploy? [y/n] " AUTO_DEPLOY
+        fi
+
+        if [[ ${PRODUCTION^^} != Y* ]] || ([[ ${FORCE_UPDATE^^} == Y* ]] && ! grep -q "/var/www/$APP_PATH" $LARADOCK_PATH/workspace/crontab/laradock); then
+            read -p "Do you want write crons? [y/n] " WRITE_CRONS
         fi
 
         DB_DATABASE="${APP_PATH}_db"
@@ -140,8 +142,12 @@ _laradock() {
     fi
 
     if [[ -d $LARADOCK_PATH ]]; then
-        echo "alias nr='npm run'" >>$LARADOCK_PATH/workspace/aliases.sh
-        echo "alias pa='php artisan'" >>$LARADOCK_PATH/workspace/aliases.sh
+        if ! grep -q "nr=" /etc/crontab; then
+            echo "alias nr='npm run'" >>$LARADOCK_PATH/workspace/aliases.sh
+        fi
+        if ! grep -q "pa=" /etc/crontab; then
+            echo "alias pa='php artisan'" >>$LARADOCK_PATH/workspace/aliases.sh
+        fi
         cd $LARADOCK_PATH
     else
         _laradock
@@ -218,31 +224,30 @@ _setenv() {
 }
 
 _crontab() {
-    if [[ ${PRODUCTION^^} == Y* ]]; then
-        if ! grep -q "/var/www/$APP_PATH" $LARADOCK_PATH/workspace/crontab/laradock; then
-            if grep -q "/var/www/artisan" $LARADOCK_PATH/workspace/crontab/laradock; then
-                echo "" >$LARADOCK_PATH/workspace/crontab/laradock
-            fi
-            echo "* * * * * laradock /usr/bin/php /var/www/$APP_PATH/artisan schedule:run >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
-            echo "@reboot laradock /usr/bin/php /var/www/$APP_PATH/artisan queue:work --timeout=60 --sleep=3 >>/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
-            if [[ ${INSTALL^^} == Y* ]]; then
-                docker-compose build --no-cache workspace
-                docker-compose up -d workspace
-            fi
+    if [[ ${PRODUCTION^^} == Y* ]] || [[ ${WRITE_CRONS^^} == Y* ]]; then
+        if grep -q "/var/www/artisan" $LARADOCK_PATH/workspace/crontab/laradock; then
+            echo "" >$LARADOCK_PATH/workspace/crontab/laradock
         fi
-    elif [[ ${PRODUCTION^^} != Y* ]] && [[ ${INSTALL^^} == Y* ]]; then
-        echo "" >$LARADOCK_PATH/workspace/crontab/laradock
+        if ! grep -q "/var/www/$APP_PATH" $LARADOCK_PATH/workspace/crontab/laradock; then
+            echo "* * * * * laradock /usr/bin/php /var/www/$APP_PATH/artisan schedule:run >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
+            echo "@reboot laradock /usr/bin/php /var/www/$APP_PATH/artisan queue:work --timeout=60 --sleep=3 >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
+            docker-compose build --no-cache workspace
+        fi
     fi
 
-    if [[ ${PRODUCTION^^} == Y* ]] || [[ ${AUTO_DEPLOY^^} == Y* ]]; then
+    if [[ ${PRODUCTION^^} == Y* ]] || [[ ${WRITE_CRONS^^} == Y* ]]; then
         sudo systemctl enable cron || sudo systemctl enable crond
         if ! grep -q "cd $LARADOCK_PATH && docker-compose up" /etc/crontab; then
-            echo "@reboot root cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS >>/dev/null 2>&1" >>/etc/crontab
+            echo "@reboot root cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS >/dev/null 2>&1" >>/etc/crontab
         fi
 
         if ! grep -q "$SCRIPT_PATH --target deploy --path $APP_PATH" /etc/crontab; then
-            echo "0 5 * * * root  $SCRIPT_PATH --target deploy --path $APP_PATH >>/dev/null 2>&1" >>/etc/crontab
+            echo "0 5 * * * root  $SCRIPT_PATH --target deploy --path $APP_PATH >/dev/null 2>&1" >>/etc/crontab
         fi
+    fi
+
+    if ! grep -q "truncate -s 0 /var/lib/docker/containers/*/*-json.log" /etc/crontab; then
+        echo "@weekly root truncate -s 0 /var/lib/docker/containers/*/*-json.log" >>/etc/crontab
     fi
 }
 
@@ -305,7 +310,6 @@ _nginx() {
         fi
 
         docker-compose build --no-cache nginx
-        docker-compose up -d nginx
     fi
 }
 
@@ -325,7 +329,6 @@ _redis() {
         sed -i 's|^CMD.*|CMD ["redis-server", "/usr/local/etc/redis/redis.conf"]|' $LARADOCK_PATH/redis/Dockerfile
 
         docker-compose build --no-cache redis
-        docker-compose up -d redis
     fi
 }
 
@@ -337,7 +340,6 @@ _php() {
         echo "RUN npm install --global --unsafe-perm puppeteer" >>$LARADOCK_PATH/php-fpm/Dockerfile
         echo "RUN chmod -R o+rx /usr/lib/node_modules/puppeteer/.local-chromium" >>$LARADOCK_PATH/php-fpm/Dockerfile
         docker-compose build --no-cache php-fpm
-        docker-compose up -d php-fpm
     fi
 }
 
