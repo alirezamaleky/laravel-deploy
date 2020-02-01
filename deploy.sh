@@ -114,10 +114,6 @@ _getenv() {
             read -e -p "MAIL_ENCRYPTION: " -i "tls" MAIL_ENCRYPTION
         fi
 
-        if [[ ${PRODUCTION^^} != Y* ]] || ([[ ${FORCE_UPDATE^^} == Y* ]] && ! grep -q "/var/www/$APP_PATH" $LARADOCK_PATH/workspace/crontab/laradock); then
-            read -p "Do you want write crons? [y/n] " WRITE_CRONS
-        fi
-
         DB_DATABASE="${APP_PATH}_db"
         DB_USERNAME="${APP_PATH}_user"
         DB_PASSWORD=$(openssl rand -base64 15)
@@ -129,6 +125,14 @@ _getenv() {
         if [[ ${#REDIS_PASSWORD} < 15 ]]; then
             REDIS_PASSWORD=$(openssl rand -base64 15)
         fi
+    fi
+
+    if [[ ${FORCE_UPDATE^^} == Y* ]] && (
+        ! grep -q "/var/www/$APP_PATH" $LARADOCK_PATH/workspace/crontab/laradock ||
+            ! grep -q "cd $LARADOCK_PATH && docker-compose up" /etc/crontab ||
+            ! grep -q "$SCRIPT_PATH --target deploy --path $APP_PATH" /etc/crontab
+    ); then
+        read -p "Do you want write crons? [y/n] " WRITE_CRONS
     fi
 }
 _getenv
@@ -246,7 +250,7 @@ _crontab() {
         fi
     fi
 
-    if ! grep -q "truncate -s 0 /var/lib/docker/containers/*/*-json.log" /etc/crontab; then
+    if ! grep -q "truncate -s 0 /var/lib/docker/containers/" /etc/crontab; then
         echo "@weekly root truncate -s 0 /var/lib/docker/containers/*/*-json.log" >>/etc/crontab
     fi
 }
