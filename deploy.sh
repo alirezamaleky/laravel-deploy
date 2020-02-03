@@ -146,10 +146,10 @@ _laradock() {
     fi
 
     if [[ -d $LARADOCK_PATH ]]; then
-        if ! grep -q "nr=" /etc/crontab; then
+        if ! grep -q "nr=" $LARADOCK_PATH/workspace/aliases.sh; then
             echo "alias nr='npm run'" >>$LARADOCK_PATH/workspace/aliases.sh
         fi
-        if ! grep -q "pa=" /etc/crontab; then
+        if ! grep -q "pa=" $LARADOCK_PATH/workspace/aliases.sh; then
             echo "alias pa='php artisan'" >>$LARADOCK_PATH/workspace/aliases.sh
         fi
         cd $LARADOCK_PATH
@@ -165,8 +165,8 @@ _setenv() {
         fi
 
         sed -i "s|PHP_FPM_INSTALL_SOAP=.*|PHP_FPM_INSTALL_SOAP=true|" $LARADOCK_PATH/.env
-        # sed -i "s|PHP_FPM_INSTALL_SWOOLE=.*|PHP_FPM_INSTALL_SWOOLE=true|" $LARADOCK_PATH/.env
-        # sed -i "s|WORKSPACE_INSTALL_SWOOLE=.*|WORKSPACE_INSTALL_SWOOLE=true|" $LARADOCK_PATH/.env
+        sed -i "s|PHP_FPM_INSTALL_SWOOLE=.*|PHP_FPM_INSTALL_SWOOLE=true|" $LARADOCK_PATH/.env
+        sed -i "s|WORKSPACE_INSTALL_SWOOLE=.*|WORKSPACE_INSTALL_SWOOLE=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_MYSQL_CLIENT=.*|WORKSPACE_INSTALL_MYSQL_CLIENT=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_NPM_GULP=.*|WORKSPACE_INSTALL_NPM_GULP=false|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_NPM_VUE_CLI=.*|WORKSPACE_INSTALL_NPM_VUE_CLI=false|" $LARADOCK_PATH/.env
@@ -237,6 +237,7 @@ _crontab() {
         if ! grep -q "/var/www/$APP_PATH" $LARADOCK_PATH/workspace/crontab/laradock; then
             echo "* * * * * laradock /usr/bin/php /var/www/$APP_PATH/artisan schedule:run >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
             echo "@reboot laradock /usr/bin/php /var/www/$APP_PATH/artisan queue:work --timeout=60 --sleep=3 >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
+            echo "@reboot laradock /usr/bin/php /var/www/$APP_PATH/artisan swoole:http restart >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
             docker-compose build --no-cache workspace
         fi
     fi
@@ -300,14 +301,50 @@ _mysql() {
         fi
     fi
 }
+_swoole() {
+    if [[ ${INSTALL^^} == Y* ]]; then
+        for i in {1251..1400}; do
+            if ! grep -q "^EXPOSE.*$i" $LARADOCK_PATH/workspace/Dockerfile; then
+                SWOOLE_PORT=$i
+                break
+            fi
+        done
+
+        if grep -q "^EXPOSE" $LARADOCK_PATH/workspace/Dockerfile; then
+            sed -i "s|^EXPOSE .*|& $SWOOLE_PORT|" $LARADOCK_PATH/workspace/Dockerfile
+        else
+            echo -e "\nEXPOSE $SWOOLE_PORT" >>$LARADOCK_PATH/workspace/Dockerfile
+        fi
+
+        if grep -q "SWOOLE_HTTP_PORT" $LARAVEL_PATH/.env; then
+            sed -i "s|SWOOLE_HTTP_PORT=.*|SWOOLE_HTTP_PORT=$SWOOLE_PORT|" $LARAVEL_PATH/.env
+        else
+            echo "SWOOLE_HTTP_PORT=$SWOOLE_PORT" >>$LARAVEL_PATH/.env
+        fi
+
+        if grep -q "SWOOLE_HTTP_HOST" $LARAVEL_PATH/.env; then
+            sed -i "s|SWOOLE_HTTP_HOST=.*|SWOOLE_HTTP_HOST=workspace|" $LARAVEL_PATH/.env
+        else
+            echo "SWOOLE_HTTP_HOST=workspace" >>$LARAVEL_PATH/.env
+        fi
+
+        if grep -q "SWOOLE_HTTP_DAEMONIZE" $LARAVEL_PATH/.env; then
+            sed -i "s|SWOOLE_HTTP_DAEMONIZE=.*|SWOOLE_HTTP_DAEMONIZE=true|" $LARAVEL_PATH/.env
+        else
+            echo "SWOOLE_HTTP_DAEMONIZE=true" >>$LARAVEL_PATH/.env
+        fi
+    fi
+}
 
 _nginx() {
     if [[ ${INSTALL^^} == Y* ]]; then
         rm -fv $LARADOCK_PATH/nginx/sites/default.conf $LARADOCK_PATH/nginx/sites/*.example
         wget -N https://raw.githubusercontent.com/alirezamaleky/nginx-config/master/default.conf -P $LARADOCK_PATH/nginx/sites
         mv $LARADOCK_PATH/nginx/sites/default.conf $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
+
         sed -i "s|/var/www/public;|/var/www/$APP_PATH/public;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
         sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
+        sed -i "s|server workspace:.*;|server workspace:$SWOOLE_PORT;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
 
         if ! grep -q "$DOMAIN" /etc/hosts; then
             sudo bash -c "echo '127.0.0.1 $DOMAIN' >>/etc/hosts"
@@ -403,7 +440,13 @@ _yarn() {
 
 _composer() {
     killall composer
-    composer global require hirak/prestissimo
+    if ! eval "composer global show" || ! eval "composer global show" | grep "hirak/prestissimo"; then
+        composer global require hirak/prestissimo
+    fi
+
+    if ! eval "composer --working-dir=$LARAVEL_PATH show" | grep "swooletw/laravel-swoole"; then
+        composer --working-dir=$LARAVEL_PATH require swooletw/laravel-swoole
+    fi
 
     if [[ ${PRODUCTION^^} == Y* ]]; then
         composer --working-dir=$LARAVEL_PATH install --optimize-autoloader --no-dev --no-interaction --prefer-dist
@@ -482,6 +525,8 @@ _laravel() {
         php $LARAVEL_PATH/artisan storage:link
     fi
 
+    php $LARAVEL_PATH/artisan swoole:http restart
+
     php $LARAVEL_PATH/artisan telescope:publish
 
     if [[ ${PRODUCTION^^} != Y* ]]; then
@@ -547,6 +592,7 @@ _router() {
             _setenv
             _crontab
             _mysql
+            _swoole
             _nginx
             _redis
             _php
