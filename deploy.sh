@@ -165,8 +165,8 @@ _setenv() {
         fi
 
         sed -i "s|PHP_FPM_INSTALL_SOAP=.*|PHP_FPM_INSTALL_SOAP=true|" $LARADOCK_PATH/.env
-        sed -i "s|PHP_FPM_INSTALL_SWOOLE=.*|PHP_FPM_INSTALL_SWOOLE=true|" $LARADOCK_PATH/.env
-        sed -i "s|WORKSPACE_INSTALL_SWOOLE=.*|WORKSPACE_INSTALL_SWOOLE=true|" $LARADOCK_PATH/.env
+        # sed -i "s|PHP_FPM_INSTALL_SWOOLE=.*|PHP_FPM_INSTALL_SWOOLE=true|" $LARADOCK_PATH/.env
+        # sed -i "s|WORKSPACE_INSTALL_SWOOLE=.*|WORKSPACE_INSTALL_SWOOLE=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_MYSQL_CLIENT=.*|WORKSPACE_INSTALL_MYSQL_CLIENT=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_NPM_GULP=.*|WORKSPACE_INSTALL_NPM_GULP=false|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_NPM_VUE_CLI=.*|WORKSPACE_INSTALL_NPM_VUE_CLI=false|" $LARADOCK_PATH/.env
@@ -308,8 +308,6 @@ _nginx() {
         mv $LARADOCK_PATH/nginx/sites/default.conf $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
         sed -i "s|/var/www/public;|/var/www/$APP_PATH/public;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
         sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
-
-        sed -i "s|openssl|#openssl|" $LARADOCK_PATH/nginx/startup.sh
 
         if ! grep -q "$DOMAIN" /etc/hosts; then
             sudo bash -c "echo '127.0.0.1 $DOMAIN' >>/etc/hosts"
