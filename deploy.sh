@@ -165,6 +165,8 @@ _setenv() {
         fi
 
         sed -i "s|PHP_FPM_INSTALL_SOAP=.*|PHP_FPM_INSTALL_SOAP=true|" $LARADOCK_PATH/.env
+        sed -i "s|PHP_FPM_INSTALL_SWOOLE=.*|PHP_FPM_INSTALL_SWOOLE=true|" $LARADOCK_PATH/.env
+        sed -i "s|WORKSPACE_INSTALL_SWOOLE=.*|WORKSPACE_INSTALL_SWOOLE=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_MYSQL_CLIENT=.*|WORKSPACE_INSTALL_MYSQL_CLIENT=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_NPM_GULP=.*|WORKSPACE_INSTALL_NPM_GULP=false|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_NPM_VUE_CLI=.*|WORKSPACE_INSTALL_NPM_VUE_CLI=false|" $LARADOCK_PATH/.env
@@ -251,7 +253,7 @@ _crontab() {
     fi
 
     if ! grep -q "truncate -s 0 /var/lib/docker/containers/" /etc/crontab; then
-        echo "@weekly root truncate -s 0 /var/lib/docker/containers/*/*-json.log" >>/etc/crontab
+        sudo bash -c "echo '@weekly root truncate -s 0 /var/lib/docker/containers/*/*-json.log' >>/etc/crontab"
     fi
 }
 
