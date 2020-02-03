@@ -158,6 +158,15 @@ _laradock() {
     fi
 }
 
+_swap() {
+    if [[ ! -f /swapfile ]]; then
+        sudo fallocate -l 4G /swapfile
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile
+        sudo swapon /swapfile
+    fi
+}
+
 _setenv() {
     if [[ ${INSTALL^^} == Y* ]]; then
         if [[ ! -f "$LARADOCK_PATH/.env" ]]; then
@@ -590,6 +599,7 @@ _router() {
             [[ -f "/usr/bin/docker-compose" ]]; then
             _laradock
             _setenv
+            _swap
             _crontab
             _mysql
             _swoole
