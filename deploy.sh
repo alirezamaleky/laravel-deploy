@@ -1,9 +1,17 @@
 #!/bin/bash
 
+DB_ENGINE=mariadb
+CONTAINERS="nginx $DB_ENGINE redis"
+if [[ ${PRODUCTION^^} != Y* ]]; then
+    CONTAINERS+=" phpmyadmin"
+# else
+#     CONTAINERS+=" mailu"
+fi
+
 for ((i = 1; i <= $#; i++)); do
     if [[ ${!i} == "-p" ]] || [[ ${!i} == "--path" ]]; then
         ((i++))
-        APP_PATH=${!i}
+        APP_DIR=${!i}
     elif [[ ${!i} = "-t" ]] || [[ ${!i} = "--target" ]]; then
         ((i++))
         TARGET=${!i}
@@ -22,24 +30,24 @@ for ((i = 1; i <= $#; i++)); do
 done
 
 _path() {
-    if [[ -z $APP_PATH ]]; then
+    if [[ -z $APP_DIR ]]; then
         if [[ -d "$PWD/public" ]]; then
-            APP_PATH=$(basename $PWD)
+            APP_DIR=$(basename $PWD)
         else
-            read -p "APP_PATH: " APP_PATH
+            read -p "APP_DIR: " APP_DIR
         fi
     fi
 
     SCRIPT_PATH=$(realpath $0)
-    LARAVEL_PATH=$(dirname $SCRIPT_PATH)/$APP_PATH
+    LARAVEL_PATH=$(dirname $SCRIPT_PATH)/$APP_DIR
     LARADOCK_PATH=$(dirname $SCRIPT_PATH)/laradock
 
     if [[ -d "$(dirname $SCRIPT_PATH)/public" ]]; then
         echo "You must run this script in project parent folder!"
         rm -fv $SCRIPT_PATH
         exit
-    elif [[ -z $APP_PATH ]] || [[ ! -d "$LARAVEL_PATH/public" ]]; then
-        unset APP_PATH
+    elif [[ -z $APP_DIR ]] || [[ ! -d "$LARAVEL_PATH/public" ]]; then
+        unset APP_DIR
         _path
     fi
 }
@@ -58,7 +66,22 @@ _format() {
             fi
             docker system prune -f --volumes
             sudo rm -fvr ~/.laradock $LARADOCK_PATH
+
+            sudo sed -i "s|.*$SCRIPT_PATH.*||" /etc/crontab
+            sudo sed -i "s|.*truncate -s 0 /var/lib/docker/containers.*||" /etc/crontab
+        else
+            sed -i "s|.*/var/www/$APP_DIR/artisan.*||" $LARADOCK_PATH/workspace/crontab/laradock
+            sed -i "/^$/d" $LARADOCK_PATH/workspace/crontab/laradock
+            rm -fv $LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/$APP_DIR.sql
+            rm -fv $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
         fi
+
+        sudo sed -i "s|.*cd $LARADOCK_PATH && docker-compose up.*||" /etc/crontab
+        sudo sed -i "s|.*$SCRIPT_PATH --target deploy --path $APP_DIR .*||" /etc/crontab
+        sudo sed -i "/^$/d" /etc/crontab
+
+        sudo sed -i "s|.*127.0.0.1 $APP_DIR..*||" /etc/hosts
+        sudo sed -i "/^$/d" /etc/hosts
 
         sudo git -C $LARAVEL_PATH clean -fxd
         sudo git -C $LARAVEL_PATH checkout -f $LARAVEL_PATH
@@ -69,14 +92,6 @@ if [[ "$*" == *-f* ]] || [[ "$*" == *--format* ]]; then
 fi
 
 _getenv() {
-    DB_ENGINE=mariadb
-    CONTAINERS="nginx $DB_ENGINE redis"
-    if [[ ${PRODUCTION^^} != Y* ]]; then
-        CONTAINERS+=" phpmyadmin"
-    # else
-    #     CONTAINERS+=" mailu"
-    fi
-
     if [[ ! -d "$LARADOCK_PATH" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "$LARAVEL_PATH/node_modules" ]]; then
         if [[ -z $INSTALL ]] && [[ $TARGET != "docker" ]] && [[ -f "$LARAVEL_PATH/.env" ]] && [[ -f "$LARADOCK_PATH/.env" ]]; then
             read -e -p "Is this first install? [y/n] " -i "y" INSTALL
@@ -105,8 +120,8 @@ _getenv() {
     fi
 
     if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
-        read -e -p "DOMAIN: " -i "$APP_PATH." DOMAIN
-        read -e -p "APP_NAME: " -i "$APP_PATH" APP_NAME
+        read -e -p "DOMAIN: " -i "$APP_DIR." DOMAIN
+        read -e -p "APP_NAME: " -i "$APP_DIR" APP_NAME
         read -e -p "PMA_PORT: " -i "8001" PMA_PORT
 
         if [[ ${PRODUCTION^^} == Y* ]]; then
@@ -114,8 +129,8 @@ _getenv() {
             read -e -p "MAIL_ENCRYPTION: " -i "tls" MAIL_ENCRYPTION
         fi
 
-        DB_DATABASE="${APP_PATH}_db"
-        DB_USERNAME="${APP_PATH}_user"
+        DB_DATABASE="${APP_DIR}_db"
+        DB_USERNAME="${APP_DIR}_user"
         DB_PASSWORD=$(openssl rand -base64 15)
         MAIL_HOST="mail.$DOMAIN"
         MAIL_PASSWORD=$(openssl rand -base64 15)
@@ -128,9 +143,9 @@ _getenv() {
     fi
 
     if ([[ ${INSTALL^^} == Y* ]] || [[ ${FORCE_UPDATE^^} == Y* ]]) && (
-        ! grep -q "/var/www/$APP_PATH" $LARADOCK_PATH/workspace/crontab/laradock ||
+        ! grep -q "/var/www/$APP_DIR" $LARADOCK_PATH/workspace/crontab/laradock ||
             ! grep -q "cd $LARADOCK_PATH && docker-compose up" /etc/crontab ||
-            ! grep -q "$SCRIPT_PATH --target deploy --path $APP_PATH" /etc/crontab
+            ! grep -q "$SCRIPT_PATH --target deploy --path $APP_DIR" /etc/crontab
     ); then
         read -p "Do you want write crons? [y/n] " WRITE_CRONS
     fi
@@ -241,10 +256,10 @@ _crontab() {
         if grep -q "/var/www/artisan" $LARADOCK_PATH/workspace/crontab/laradock; then
             echo "" >$LARADOCK_PATH/workspace/crontab/laradock
         fi
-        if ! grep -q "/var/www/$APP_PATH" $LARADOCK_PATH/workspace/crontab/laradock; then
-            echo -e "\n* * * * * laradock /usr/bin/php /var/www/$APP_PATH/artisan schedule:run >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
-            echo "@reboot laradock /usr/bin/php /var/www/$APP_PATH/artisan queue:work --timeout=60 --sleep=3 >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
-            echo "@reboot laradock /usr/bin/php /var/www/$APP_PATH/artisan swoole:http restart >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
+        if ! grep -q "/var/www/$APP_DIR" $LARADOCK_PATH/workspace/crontab/laradock; then
+            echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan schedule:run >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
+            echo "@reboot laradock /usr/bin/php /var/www/$APP_DIR/artisan queue:work --timeout=60 --sleep=3 >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
+            echo "@reboot laradock /usr/bin/php /var/www/$APP_DIR/artisan swoole:http restart >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
             docker-compose build --no-cache workspace
         fi
     fi
@@ -255,8 +270,8 @@ _crontab() {
             sudo bash -c "echo '@reboot root cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS >/dev/null 2>&1' >>/etc/crontab"
         fi
 
-        if ! grep -q "$SCRIPT_PATH --target deploy --path $APP_PATH" /etc/crontab; then
-            sudo bash -c "echo '0 5 * * * root  $SCRIPT_PATH --target deploy --path $APP_PATH >/dev/null 2>&1' >>/etc/crontab"
+        if ! grep -q "$SCRIPT_PATH --target deploy --path $APP_DIR" /etc/crontab; then
+            sudo bash -c "echo '0 5 * * * root  $SCRIPT_PATH --target deploy --path $APP_DIR >/dev/null 2>&1' >>/etc/crontab"
         fi
     fi
 
@@ -279,7 +294,8 @@ _mysql() {
                 echo "max_allowed_packet=16M" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
             fi
 
-            if [[ ! -f "$LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/$APP_PATH.sql" ]]; then
+            INITDB_FILE="$LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/$APP_DIR.sql"
+            if [[ ! -f $INITDB_FILE ]]; then
                 rm -fv $LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/*.example
                 SQL="DROP USER IF EXISTS 'default'@'%';"
                 SQL+="CREATE USER IF NOT EXISTS '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';"
@@ -288,7 +304,6 @@ _mysql() {
                 SQL+="GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'%';"
                 SQL+="FLUSH PRIVILEGES;"
                 IFS=';' read -r -a SQL_ARRAY <<<$SQL
-                INITDB_FILE="$LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/$APP_PATH.sql"
                 rm -fv $INITDB_FILE
                 for QUERY in "${SQL_ARRAY[@]}"; do
                     echo "$QUERY;" >>$INITDB_FILE
@@ -303,7 +318,7 @@ _mysql() {
                 sleep 5
                 _mysql
             else
-                eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'source /docker-entrypoint-initdb.d/$APP_PATH.sql;'"
+                eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'source /docker-entrypoint-initdb.d/$APP_DIR.sql;'"
             fi
         fi
     fi
@@ -347,12 +362,13 @@ _nginx() {
     if [[ ${INSTALL^^} == Y* ]]; then
         rm -fv $LARADOCK_PATH/nginx/sites/default.conf $LARADOCK_PATH/nginx/sites/*.example
         wget -N https://raw.githubusercontent.com/alirezamaleky/nginx-config/master/default.conf -P $LARADOCK_PATH/nginx/sites
-        mv $LARADOCK_PATH/nginx/sites/default.conf $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
+        mv $LARADOCK_PATH/nginx/sites/default.conf $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
 
-        sed -i "s|/var/www/public;|/var/www/$APP_PATH/public;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
-        sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
-        sed -i "s|upstream websocket.*;|upstream websocket_$SWOOLE_PORT {|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
-        sed -i "s|server workspace:.*;|server workspace:$SWOOLE_PORT;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
+        sed -i "s|/var/www/public;|/var/www/$APP_DIR/public;|" $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
+        sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
+        sed -i "s|upstream websocket.*;|upstream websocket_$SWOOLE_PORT {|" $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
+        sed -i "s|proxy_pass http://websocket|proxy_pass http://websocket_$SWOOLE_PORT|" $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
+        sed -i "s|server workspace:.*;|server workspace:$SWOOLE_PORT;|" $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
 
         if ! grep -q "$DOMAIN" /etc/hosts; then
             sudo bash -c "echo '127.0.0.1 $DOMAIN' >>/etc/hosts"
@@ -423,7 +439,7 @@ _git() {
 _up() {
     docker-compose up -d $CONTAINERS
     if [[ $TARGET == "deploy" ]]; then
-        COMPOSE_SCRIPT="sudo docker-compose exec -T workspace /var/www/deploy.sh --target docker --path $APP_PATH"
+        COMPOSE_SCRIPT="sudo docker-compose exec -T workspace /var/www/deploy.sh --target docker --path $APP_DIR"
         if [[ ${FORCE_UPDATE^^} == Y* ]]; then
             COMPOSE_SCRIPT+=" --update"
         fi
@@ -432,7 +448,7 @@ _up() {
         fi
         eval $COMPOSE_SCRIPT
     else
-        docker-compose exec workspace bash -c "cd $APP_PATH; bash"
+        docker-compose exec workspace bash -c "cd $APP_DIR; bash"
     fi
 }
 
@@ -448,7 +464,7 @@ _yarn() {
 
 _composer() {
     killall composer
-    if [[ ! -d "/root/.composer" ]] || ! eval "composer global show" | grep "hirak/prestissimo"; then
+    if ! eval "composer global show" || ! eval "composer global show" | grep "hirak/prestissimo"; then
         composer global require hirak/prestissimo
     fi
 
@@ -486,7 +502,7 @@ _backup() {
             --ignore-table=$DB_DATABASE.telescope_entries \
             --ignore-table=$DB_DATABASE.telescope_entries_tags \
             --ignore-table=$DB_DATABASE.telescope_monitoring \
-            --result-file=/var/www/$APP_PATH/storage/app/databases/$(date "+%y-%m-%d_%H:%M").sql
+            --result-file=/var/www/$APP_DIR/storage/app/databases/$(date "+%y-%m-%d_%H:%M").sql
     fi
 }
 
