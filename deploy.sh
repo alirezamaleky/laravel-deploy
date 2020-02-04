@@ -62,7 +62,7 @@ _format() {
         if [[ ${RESET_LARADOCK^^} == Y* ]]; then
             if [[ ! -z $(docker container ls -aq) ]]; then
                 docker container stop $(docker container ls -aq)
-                docker container rm -fv $(docker container ls -aq)
+                docker container rm -fvl $(docker container ls -aq)
             fi
             docker system prune -f --volumes
             sudo rm -fvr ~/.laradock $LARADOCK_PATH
@@ -291,12 +291,6 @@ _crontab() {
 _mysql() {
     if [[ $TARGET == "deploy" ]]; then
         if [[ ${DB_WAITING^^} != Y* ]]; then
-            if [[ ${RESET_DATABASE^^} == Y* ]]; then
-                sudo rm -fvr ~/.laradock/data/$DB_ENGINE
-                docker-compose build --no-cache $DB_ENGINE
-            fi
-            docker-compose up -d $DB_ENGINE
-
             if ! grep -q "max_allowed_packet=16M" $LARADOCK_PATH/$DB_ENGINE/my.cnf; then
                 echo "[mysqld]" >$LARADOCK_PATH/$DB_ENGINE/my.cnf
                 echo "max_allowed_packet=16M" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
@@ -321,6 +315,12 @@ _mysql() {
         fi
 
         if [[ ${RELOAD_DATABASE^^} == Y* ]]; then
+            if [[ ${RESET_DATABASE^^} == Y* ]]; then
+                sudo rm -fvr ~/.laradock/data/$DB_ENGINE
+                docker-compose build $DB_ENGINE
+            fi
+            docker-compose up -d $DB_ENGINE
+
             if ! eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'SHOW DATABASES;'"; then
                 DB_WAITING="y"
                 sleep 5
@@ -331,6 +331,7 @@ _mysql() {
         fi
     fi
 }
+
 _swoole() {
     if [[ ${INSTALL^^} == Y* ]]; then
         for i in {1251..1400}; do
@@ -381,8 +382,6 @@ _nginx() {
         if ! grep -q "$DOMAIN" /etc/hosts; then
             sudo bash -c "echo '127.0.0.1 $DOMAIN' >>/etc/hosts"
         fi
-
-        sudo docker-compose build --no-cache nginx
     fi
 }
 
@@ -400,8 +399,6 @@ _redis() {
         sed -i "s|^#RUN|RUN|" $LARADOCK_PATH/redis/Dockerfile
         sed -i "s|^#COPY|COPY|" $LARADOCK_PATH/redis/Dockerfile
         sed -i 's|^CMD.*|CMD ["redis-server", "/usr/local/etc/redis/redis.conf"]|' $LARADOCK_PATH/redis/Dockerfile
-
-        docker-compose build --no-cache redis
     fi
 }
 
@@ -412,7 +409,6 @@ _php() {
         echo "RUN apt-get install -y nodejs gconf-service libasound2 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 ca-certificates fonts-liberation libappindicator1 libnss3 lsb-release xdg-utils wget" >>$LARADOCK_PATH/php-fpm/Dockerfile
         echo "RUN npm install --global --unsafe-perm puppeteer" >>$LARADOCK_PATH/php-fpm/Dockerfile
         echo "RUN chmod -R o+rx /usr/lib/node_modules/puppeteer/.local-chromium" >>$LARADOCK_PATH/php-fpm/Dockerfile
-        docker-compose build --no-cache php-fpm
     fi
 }
 
@@ -445,6 +441,9 @@ _git() {
 }
 
 _up() {
+    if [[ $TARGET == "deploy" ]]; then
+        sudo docker-compose build --compress $CONTAINERS
+    fi
     docker-compose up -d $CONTAINERS
     if [[ $TARGET == "deploy" ]]; then
         COMPOSE_SCRIPT="sudo docker-compose exec -T workspace /var/www/deploy.sh --target docker --path $APP_DIR"
