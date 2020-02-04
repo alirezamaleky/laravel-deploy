@@ -373,7 +373,7 @@ _nginx() {
 
         sed -i "s|/var/www/public;|/var/www/$APP_DIR/public;|" $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
         sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
-        sed -i "s|upstream websocket.*;|upstream websocket_$SWOOLE_PORT {|" $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
+        sed -i "s|upstream websocket.*|upstream websocket_$SWOOLE_PORT {|" $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
         sed -i "s|proxy_pass http://websocket|proxy_pass http://websocket_$SWOOLE_PORT|" $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
         sed -i "s|server workspace:.*;|server workspace:$SWOOLE_PORT;|" $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
 
