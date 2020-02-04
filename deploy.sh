@@ -448,7 +448,7 @@ _yarn() {
 
 _composer() {
     killall composer
-    if ! eval "composer global show" || ! eval "composer global show" | grep "hirak/prestissimo"; then
+    if [[ ! -d "/root/.composer" ]] || ! eval "composer global show" | grep "hirak/prestissimo"; then
         composer global require hirak/prestissimo
     fi
 
