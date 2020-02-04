@@ -1,5 +1,18 @@
 #!/bin/bash
 
+if [[ ! -d "$LARADOCK_PATH" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "$LARAVEL_PATH/node_modules" ]]; then
+    if [[ -z $INSTALL ]] && [[ $TARGET != "docker" ]] && [[ -f "$LARAVEL_PATH/.env" ]] && [[ -f "$LARADOCK_PATH/.env" ]]; then
+        read -e -p "Is this first install? [y/n] " -i "y" INSTALL
+    fi
+    INSTALL=${INSTALL:-y}
+fi
+
+if [[ -f $LARAVEL_PATH/.env ]] && [[ $(grep APP_ENV $LARAVEL_PATH/.env | cut -d "=" -f2) == "production" ]]; then
+    PRODUCTION="y"
+elif [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
+    read -p "Is the project in production? [y/n] " PRODUCTION
+fi
+
 DB_ENGINE=mariadb
 CONTAINERS="nginx $DB_ENGINE redis"
 if [[ ${PRODUCTION^^} != Y* ]]; then
@@ -85,8 +98,10 @@ _format() {
         sudo sed -i "s|.*$SCRIPT_PATH --target deploy --path $APP_DIR .*||" /etc/crontab
         sudo sed -i "/^$/d" /etc/crontab
 
-        sudo sed -i "s|.*127.0.0.1 $APP_DIR..*||" /etc/hosts
-        sudo sed -i "/^$/d" /etc/hosts
+        if [[ ${PRODUCTION^^} != Y* ]]; then
+            sudo sed -i "s|.*127.0.0.1 $APP_DIR..*||" /etc/hosts
+            sudo sed -i "/^$/d" /etc/hosts
+        fi
 
         sudo git -C $LARAVEL_PATH clean -fxd
         sudo git -C $LARAVEL_PATH checkout -f $LARAVEL_PATH
@@ -97,19 +112,6 @@ if [[ "$*" == *-f* ]] || [[ "$*" == *--format* ]]; then
 fi
 
 _getenv() {
-    if [[ ! -d "$LARADOCK_PATH" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "$LARAVEL_PATH/node_modules" ]]; then
-        if [[ -z $INSTALL ]] && [[ $TARGET != "docker" ]] && [[ -f "$LARAVEL_PATH/.env" ]] && [[ -f "$LARADOCK_PATH/.env" ]]; then
-            read -e -p "Is this first install? [y/n] " -i "y" INSTALL
-        fi
-        INSTALL=${INSTALL:-y}
-    fi
-
-    if [[ -f $LARAVEL_PATH/.env ]] && [[ $(grep APP_ENV $LARAVEL_PATH/.env | cut -d "=" -f2) == "production" ]]; then
-        PRODUCTION="y"
-    elif [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
-        read -p "Is the project in production? [y/n] " PRODUCTION
-    fi
-
     if [[ -f $LARAVEL_PATH/.env ]]; then
         DB_DATABASE=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d "=" -f2)
         DB_USERNAME=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d "=" -f2)
@@ -369,7 +371,7 @@ _nginx() {
         sed -i "s|proxy_pass http://websocket|proxy_pass http://websocket_$SWOOLE_PORT|" $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
         sed -i "s|server workspace:.*;|server workspace:$SWOOLE_PORT;|" $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
 
-        if ! grep -q "$DOMAIN" /etc/hosts; then
+        if [[ ${PRODUCTION^^} != Y* ]] && ! grep -q "127.0.0.1 $DOMAIN" /etc/hosts; then
             sudo bash -c "echo '127.0.0.1 $DOMAIN' >>/etc/hosts"
         fi
     fi
