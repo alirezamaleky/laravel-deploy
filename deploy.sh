@@ -440,9 +440,9 @@ _git() {
 
 _up() {
     if [[ $TARGET == "deploy" ]]; then
-        sudo docker-compose build --compress --no-cache $CONTAINERS
+        sudo docker-compose build --compress --no-cache $CONTAINERS workspace
     fi
-    docker-compose up -d $CONTAINERS
+    docker-compose up -d $CONTAINERS workspace
     if [[ $TARGET == "deploy" ]]; then
         COMPOSE_SCRIPT="sudo docker-compose exec -T workspace /var/www/deploy.sh --target docker --path $APP_DIR"
         if [[ ${FORCE_UPDATE^^} == Y* ]]; then
