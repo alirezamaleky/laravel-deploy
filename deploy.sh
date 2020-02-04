@@ -62,7 +62,7 @@ _format() {
         if [[ ${RESET_LARADOCK^^} == Y* ]]; then
             if [[ ! -z $(docker container ls -aq) ]]; then
                 docker container stop $(docker container ls -aq)
-                docker container rm -fvl $(docker container ls -aq)
+                docker container rm -fv $(docker container ls -aq)
             fi
             docker system prune -f --volumes
             sudo rm -fvr ~/.laradock $LARADOCK_PATH
