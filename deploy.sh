@@ -192,8 +192,6 @@ _setenv() {
             cp $LARADOCK_PATH/env-example $LARADOCK_PATH/.env
         fi
 
-        sed -i "s|PHP_FPM_INSTALL_SOAP=.*|PHP_FPM_INSTALL_SOAP=true|" $LARADOCK_PATH/.env
-        sed -i "s|PHP_FPM_INSTALL_SWOOLE=.*|PHP_FPM_INSTALL_SWOOLE=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_SWOOLE=.*|WORKSPACE_INSTALL_SWOOLE=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_MYSQL_CLIENT=.*|WORKSPACE_INSTALL_MYSQL_CLIENT=true|" $LARADOCK_PATH/.env
         sed -i "s|WORKSPACE_INSTALL_NPM_GULP=.*|WORKSPACE_INSTALL_NPM_GULP=false|" $LARADOCK_PATH/.env
@@ -324,6 +322,19 @@ _mysql() {
     fi
 }
 
+_puppeteer() {
+    if ! grep -q "puppeteer" $LARADOCK_PATH/workspace/Dockerfile; then
+        echo "USER root" >>$LARADOCK_PATH/workspace/Dockerfile
+        echo "RUN curl -sL https://deb.nodesource.com/setup_13.x | bash -" >>$LARADOCK_PATH/workspace/Dockerfile
+        echo "RUN apt-get install -y nodejs gconf-service libasound2 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 ca-certificates fonts-liberation libappindicator1 libnss3 lsb-release xdg-utils wget" >>$LARADOCK_PATH/workspace/Dockerfile
+        echo "RUN yarn global add puppeteer" >>$LARADOCK_PATH/workspace/Dockerfile
+        CHROMIUM_PATH="/usr/local/share/.config/yarn/global/node_modules/puppeteer/.local-chromium"
+        echo "RUN mkdir -p /usr/lib/node_modules/puppeteer/" >>$LARADOCK_PATH/workspace/Dockerfile
+        echo "RUN ln -s $CHROMIUM_PATH /usr/lib/node_modules/puppeteer/" >>$LARADOCK_PATH/workspace/Dockerfile
+        echo "RUN chmod -R o+rx $CHROMIUM_PATH /usr/lib/node_modules/puppeteer/" >>$LARADOCK_PATH/workspace/Dockerfile
+    fi
+}
+
 _swoole() {
     if [[ ${INSTALL^^} == Y* ]]; then
         for i in {1251..1400}; do
@@ -391,16 +402,6 @@ _redis() {
         sed -i "s|^#RUN|RUN|" $LARADOCK_PATH/redis/Dockerfile
         sed -i "s|^#COPY|COPY|" $LARADOCK_PATH/redis/Dockerfile
         sed -i 's|^CMD.*|CMD ["redis-server", "/usr/local/etc/redis/redis.conf"]|' $LARADOCK_PATH/redis/Dockerfile
-    fi
-}
-
-_php() {
-    if [[ ${INSTALL^^} == Y* ]] && [[ ${PRODUCTION^^} == Y* ]] && ! grep -q "puppeteer" $LARADOCK_PATH/php-fpm/Dockerfile; then
-        echo "USER root" >>$LARADOCK_PATH/php-fpm/Dockerfile
-        echo "RUN curl -sL https://deb.nodesource.com/setup_13.x | bash -" >>$LARADOCK_PATH/php-fpm/Dockerfile
-        echo "RUN apt-get install -y nodejs gconf-service libasound2 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 ca-certificates fonts-liberation libappindicator1 libnss3 lsb-release xdg-utils wget" >>$LARADOCK_PATH/php-fpm/Dockerfile
-        echo "RUN npm install --global --unsafe-perm puppeteer" >>$LARADOCK_PATH/php-fpm/Dockerfile
-        echo "RUN chmod -R o+rx /usr/lib/node_modules/puppeteer/.local-chromium" >>$LARADOCK_PATH/php-fpm/Dockerfile
     fi
 }
 
@@ -616,10 +617,10 @@ _router() {
             _swap
             _crontab
             _mysql
+            _puppeteer
             _swoole
             _nginx
             _redis
-            _php
             _git
             _up
 
