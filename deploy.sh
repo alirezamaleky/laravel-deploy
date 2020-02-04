@@ -255,7 +255,7 @@ _crontab() {
     rm -fv $LARADOCK_PATH/workspace/crontab/$APP_DIR
     echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan schedule:run --no-interaction >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
     echo "@reboot laradock /usr/bin/php /var/www/$APP_DIR/artisan queue:work --sleep=3 --tries=3 --no-interaction >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
-    echo "@reboot laradock /usr/bin/php /var/www/$APP_DIR/artisan swoole:http restart >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
+    echo "@reboot laradock while true; do if /usr/bin/php /var/www/$APP_DIR/artisan swoole:http infos | grep "Offline"; then { /usr/bin/php /var/www/$APP_DIR/artisan swoole:http restart; sleep 2; }; else { sleep 60; }; fi; done >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
 
     if [[ ${PRODUCTION^^} == Y* ]]; then
         sudo systemctl enable cron || sudo systemctl enable crond
