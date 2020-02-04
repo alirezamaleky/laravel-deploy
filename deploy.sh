@@ -88,8 +88,7 @@ _format() {
                 sed -i "s|^EXPOSE .*|EXPOSE ${EXPOSE_PORT/$SWOOLE_PORT/}|" $LARADOCK_PATH/workspace/Dockerfile
             fi
 
-            sed -i "s|.*$APP_DIR/artisan.*||" $LARADOCK_PATH/workspace/crontab/laradock
-            sed -i "/^$/d" $LARADOCK_PATH/workspace/crontab/laradock
+            rm -fv $LARADOCK_PATH/workspace/crontab/$APP_DIR
             rm -fv $LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/$APP_DIR.sql
             rm -fv $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
         fi
