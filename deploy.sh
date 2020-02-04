@@ -59,7 +59,7 @@ elif [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
 fi
 
 DB_ENGINE=mariadb
-CONTAINERS="nginx $DB_ENGINE redis"
+CONTAINERS="nginx redis $DB_ENGINE"
 if [[ ${PRODUCTION^^} != Y* ]]; then
     CONTAINERS+=" phpmyadmin"
 # else
@@ -143,15 +143,6 @@ _getenv() {
         if [[ ${#REDIS_PASSWORD} < 15 ]]; then
             REDIS_PASSWORD=$(openssl rand -base64 15)
         fi
-    fi
-
-    if ([[ ${INSTALL^^} == Y* ]] || [[ ${FORCE_UPDATE^^} == Y* ]]) && (
-        [[ ! -f workspace/crontab/laradock ]] ||
-            ! grep -q "/var/www/$APP_DIR" $LARADOCK_PATH/workspace/crontab/laradock ||
-            ! grep -q "cd $LARADOCK_PATH && docker-compose up" /etc/crontab ||
-            ! grep -q "$SCRIPT_PATH --target deploy --path $APP_DIR" /etc/crontab
-    ); then
-        read -p "Do you want write crons? [y/n] " WRITE_CRONS
     fi
 }
 _getenv
@@ -254,21 +245,22 @@ _setenv() {
 }
 
 _crontab() {
-    if [[ ${PRODUCTION^^} == Y* ]] || [[ ${WRITE_CRONS^^} == Y* ]]; then
-        if grep -q "/var/www/artisan" $LARADOCK_PATH/workspace/crontab/laradock; then
-            echo "" >$LARADOCK_PATH/workspace/crontab/laradock
-        fi
-        if ! grep -q "$APP_DIR/artisan" $LARADOCK_PATH/workspace/crontab/laradock; then
-            echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan schedule:run >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
-            echo "@reboot laradock /usr/bin/php /var/www/$APP_DIR/artisan queue:work --timeout=60 --sleep=3 >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
-        fi
-    fi
-    if ! grep -q "$APP_DIR/artisan swoole:http" $LARADOCK_PATH/workspace/crontab/laradock; then
-        echo "@reboot laradock /usr/bin/php /var/www/$APP_DIR/artisan swoole:http restart >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
+    if ! grep -q "truncate -s 0 /var/lib/docker/containers/" /etc/crontab; then
+        sudo bash -c "echo '@weekly root truncate -s 0 /var/lib/docker/containers/*/*-json.log' >>/etc/crontab"
     fi
 
-    if [[ ${PRODUCTION^^} == Y* ]] || [[ ${WRITE_CRONS^^} == Y* ]]; then
+    rm -fv $LARADOCK_PATH/workspace/crontab/laradock
+    if ! grep -q "^RUN systemctl enable cron || systemctl enable crond" $LARADOCK_PATH/workspace/Dockerfile; then
+        echo "RUN systemctl enable cron || systemctl enable crond" >>$LARADOCK_PATH/workspace/Dockerfile
+    fi
+    rm -fv $LARADOCK_PATH/workspace/crontab/$APP_DIR
+    echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan schedule:run >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
+    echo "@reboot laradock /usr/bin/php /var/www/$APP_DIR/artisan queue:work --sleep=3 --tries=3 --daemon >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
+    echo "@reboot laradock /usr/bin/php /var/www/$APP_DIR/artisan swoole:http restart >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
+
+    if [[ ${PRODUCTION^^} == Y* ]]; then
         sudo systemctl enable cron || sudo systemctl enable crond
+
         if ! grep -q "cd $LARADOCK_PATH && docker-compose up" /etc/crontab; then
             sudo bash -c "echo '@reboot root cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS >/dev/null 2>&1' >>/etc/crontab"
         fi
@@ -276,10 +268,6 @@ _crontab() {
         if ! grep -q "$SCRIPT_PATH --target deploy --path $APP_DIR" /etc/crontab; then
             sudo bash -c "echo '0 5 * * * root  $SCRIPT_PATH --target deploy --path $APP_DIR >/dev/null 2>&1' >>/etc/crontab"
         fi
-    fi
-
-    if ! grep -q "truncate -s 0 /var/lib/docker/containers/" /etc/crontab; then
-        sudo bash -c "echo '@weekly root truncate -s 0 /var/lib/docker/containers/*/*-json.log' >>/etc/crontab"
     fi
 }
 
