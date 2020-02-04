@@ -474,14 +474,14 @@ _composer() {
         composer global require hirak/prestissimo
     fi
 
-    if ! eval "composer --working-dir=$LARAVEL_PATH show" | grep "swooletw/laravel-swoole"; then
-        composer --working-dir=$LARAVEL_PATH require swooletw/laravel-swoole
-    fi
-
     if [[ ${PRODUCTION^^} == Y* ]]; then
         composer --working-dir=$LARAVEL_PATH install --optimize-autoloader --no-dev --no-interaction --prefer-dist
     else
         composer --working-dir=$LARAVEL_PATH install
+    fi
+
+    if ! eval "composer --working-dir=$LARAVEL_PATH show" | grep "swooletw/laravel-swoole"; then
+        composer --working-dir=$LARAVEL_PATH require swooletw/laravel-swoole
     fi
 
     if [[ ${INSTALL^^} == Y* ]]; then
