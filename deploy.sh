@@ -70,7 +70,7 @@ _format() {
             sudo sed -i "s|.*$SCRIPT_PATH.*||" /etc/crontab
             sudo sed -i "s|.*truncate -s 0 /var/lib/docker/containers.*||" /etc/crontab
         else
-            sed -i "s|.*/var/www/$APP_DIR/artisan.*||" $LARADOCK_PATH/workspace/crontab/laradock
+            sed -i "s|.*$APP_DIR/artisan.*||" $LARADOCK_PATH/workspace/crontab/laradock
             sed -i "/^$/d" $LARADOCK_PATH/workspace/crontab/laradock
             rm -fv $LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/$APP_DIR.sql
             rm -fv $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
