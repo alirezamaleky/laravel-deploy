@@ -69,6 +69,7 @@ fi
 
 _format() {
     if [[ $TARGET != "docker" ]]; then
+        INSTALL="y"
         RESET_WORKSPACE="y"
 
         read -p "RESET_LARADOCK [y/n]? " RESET_LARADOCK
