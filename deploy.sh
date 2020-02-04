@@ -426,6 +426,7 @@ _up() {
     fi
     docker-compose up -d $CONTAINERS workspace
     if [[ $TARGET == "deploy" ]]; then
+        docker-compose restart workspace
         COMPOSE_SCRIPT="sudo docker-compose exec -T workspace /var/www/deploy.sh --target docker --path $APP_DIR"
         if [[ ${FORCE_UPDATE^^} == Y* ]]; then
             COMPOSE_SCRIPT+=" --update"
@@ -547,12 +548,6 @@ _laravel() {
     fi
 }
 
-_queue() {
-    if [[ ${INSTALL^^} != Y* ]]; then
-        php $LARAVEL_PATH/artisan queue:restart
-    fi
-}
-
 _permission() {
     if [[ ${INSTALL^^} == Y* ]] && [[ ${PRODUCTION^^} != Y* ]]; then
         killall find
@@ -586,7 +581,6 @@ _router() {
         fi
         _optimize
         _laravel
-        _queue
         _permission
 
         echo "Deployment takes $((SECONDS - ELAPSED_SEC)) second."
