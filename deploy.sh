@@ -1,26 +1,5 @@
 #!/bin/bash
 
-if [[ ! -d "$LARADOCK_PATH" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "$LARAVEL_PATH/node_modules" ]]; then
-    if [[ -z $INSTALL ]] && [[ $TARGET != "docker" ]] && [[ -f "$LARAVEL_PATH/.env" ]] && [[ -f "$LARADOCK_PATH/.env" ]]; then
-        read -e -p "Is this first install? [y/n] " -i "y" INSTALL
-    fi
-    INSTALL=${INSTALL:-y}
-fi
-
-if [[ -f $LARAVEL_PATH/.env ]] && [[ $(grep APP_ENV $LARAVEL_PATH/.env | cut -d "=" -f2) == "production" ]]; then
-    PRODUCTION="y"
-elif [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
-    read -p "Is the project in production? [y/n] " PRODUCTION
-fi
-
-DB_ENGINE=mariadb
-CONTAINERS="nginx $DB_ENGINE redis"
-if [[ ${PRODUCTION^^} != Y* ]]; then
-    CONTAINERS+=" phpmyadmin"
-# else
-#     CONTAINERS+=" mailu"
-fi
-
 for ((i = 1; i <= $#; i++)); do
     if [[ ${!i} == "-p" ]] || [[ ${!i} == "--path" ]]; then
         ((i++))
@@ -65,6 +44,27 @@ _path() {
     fi
 }
 _path
+
+if [[ ! -d "$LARADOCK_PATH" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "$LARAVEL_PATH/node_modules" ]]; then
+    if [[ -z $INSTALL ]] && [[ $TARGET != "docker" ]] && [[ -f "$LARAVEL_PATH/.env" ]] && [[ -f "$LARADOCK_PATH/.env" ]]; then
+        read -e -p "Is this first install? [y/n] " -i "y" INSTALL
+    fi
+    INSTALL=${INSTALL:-y}
+fi
+
+if [[ -f $LARAVEL_PATH/.env ]] && [[ $(grep APP_ENV $LARAVEL_PATH/.env | cut -d "=" -f2) == "production" ]]; then
+    PRODUCTION="y"
+elif [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
+    read -p "Is the project in production? [y/n] " PRODUCTION
+fi
+
+DB_ENGINE=mariadb
+CONTAINERS="nginx $DB_ENGINE redis"
+if [[ ${PRODUCTION^^} != Y* ]]; then
+    CONTAINERS+=" phpmyadmin"
+# else
+#     CONTAINERS+=" mailu"
+fi
 
 _format() {
     if [[ $TARGET != "docker" ]]; then
