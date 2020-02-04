@@ -312,15 +312,14 @@ _mysql() {
                 done
                 RELOAD_DATABASE="y"
             fi
-        fi
-
-        if [[ ${RELOAD_DATABASE^^} == Y* ]]; then
             if [[ ${RESET_DATABASE^^} == Y* ]]; then
                 sudo rm -fvr ~/.laradock/data/$DB_ENGINE
                 docker-compose build $DB_ENGINE
             fi
             docker-compose up -d $DB_ENGINE
+        fi
 
+        if [[ ${RELOAD_DATABASE^^} == Y* ]]; then
             if ! eval "docker-compose exec $DB_ENGINE mysql -u root -p$DB_ROOT_PASSWORD -e 'SHOW DATABASES;'"; then
                 DB_WAITING="y"
                 sleep 5
