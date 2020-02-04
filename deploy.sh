@@ -149,7 +149,8 @@ _getenv() {
     fi
 
     if ([[ ${INSTALL^^} == Y* ]] || [[ ${FORCE_UPDATE^^} == Y* ]]) && (
-        ! grep -q "/var/www/$APP_DIR" $LARADOCK_PATH/workspace/crontab/laradock ||
+        [[ ! -f workspace/crontab/laradock ]] ||
+            ! grep -q "/var/www/$APP_DIR" $LARADOCK_PATH/workspace/crontab/laradock ||
             ! grep -q "cd $LARADOCK_PATH && docker-compose up" /etc/crontab ||
             ! grep -q "$SCRIPT_PATH --target deploy --path $APP_DIR" /etc/crontab
     ); then
