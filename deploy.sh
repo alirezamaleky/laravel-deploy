@@ -441,7 +441,7 @@ _git() {
 
 _up() {
     if [[ $TARGET == "deploy" ]]; then
-        sudo docker-compose build --compress $CONTAINERS
+        sudo docker-compose build --compress --no-cache $CONTAINERS
     fi
     docker-compose up -d $CONTAINERS
     if [[ $TARGET == "deploy" ]]; then
