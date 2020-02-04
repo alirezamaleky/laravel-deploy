@@ -351,6 +351,7 @@ _nginx() {
 
         sed -i "s|/var/www/public;|/var/www/$APP_PATH/public;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
         sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
+        sed -i "s|upstream websocket.*;|upstream websocket_$SWOOLE_PORT {|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
         sed -i "s|server workspace:.*;|server workspace:$SWOOLE_PORT;|" $LARADOCK_PATH/nginx/sites/$APP_PATH.conf
 
         if ! grep -q "$DOMAIN" /etc/hosts; then
@@ -376,7 +377,7 @@ _redis() {
         sed -i "s|^#COPY|COPY|" $LARADOCK_PATH/redis/Dockerfile
         sed -i 's|^CMD.*|CMD ["redis-server", "/usr/local/etc/redis/redis.conf"]|' $LARADOCK_PATH/redis/Dockerfile
 
-        docker-compose build --no-cache redis
+        docker-compose build --no-cache redis || docker-compose restart redis
     fi
 }
 
