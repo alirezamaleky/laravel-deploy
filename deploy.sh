@@ -4,6 +4,7 @@ for ((i = 1; i <= $#; i++)); do
     if [[ ${!i} == "-p" ]] || [[ ${!i} == "--path" ]]; then
         ((i++))
         APP_DIR=${!i}
+        APP_DIR=${APP_DIR///}
     elif [[ ${!i} = "-t" ]] || [[ ${!i} = "--target" ]]; then
         ((i++))
         TARGET=${!i}
@@ -278,9 +279,10 @@ _mysql() {
                 echo "max_allowed_packet=16M" >>$LARADOCK_PATH/$DB_ENGINE/my.cnf
             fi
 
+            rm -fv $LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/*.example
             INITDB_FILE="$LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/$APP_DIR.sql"
             if [[ ! -f $INITDB_FILE ]]; then
-                rm -fv $LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/*.example
+                touch $INITDB_FILE
                 SQL="DROP USER IF EXISTS 'default'@'%';"
                 SQL+="CREATE USER IF NOT EXISTS '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';"
                 SQL+="ALTER USER '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';"
