@@ -433,7 +433,7 @@ _git() {
 }
 
 _up() {
-    if [[ ${INSTALL^^} != Y* ]]; then
+    if [[ ${INSTALL^^} == Y* ]]; then
         sudo docker-compose build --compress $CONTAINERS workspace
     fi
     docker-compose up -d $CONTAINERS workspace
