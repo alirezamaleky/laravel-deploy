@@ -256,12 +256,13 @@ _crontab() {
         if grep -q "/var/www/artisan" $LARADOCK_PATH/workspace/crontab/laradock; then
             echo "" >$LARADOCK_PATH/workspace/crontab/laradock
         fi
-        if ! grep -q "/var/www/$APP_DIR" $LARADOCK_PATH/workspace/crontab/laradock; then
+        if ! grep -q "$APP_DIR/artisan" $LARADOCK_PATH/workspace/crontab/laradock; then
             echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan schedule:run >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
             echo "@reboot laradock /usr/bin/php /var/www/$APP_DIR/artisan queue:work --timeout=60 --sleep=3 >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
-            echo "@reboot laradock /usr/bin/php /var/www/$APP_DIR/artisan swoole:http restart >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
-            docker-compose build --no-cache workspace
         fi
+    fi
+    if ! grep -q "$APP_DIR/artisan swoole:http" $LARADOCK_PATH/workspace/crontab/laradock; then
+        echo "@reboot laradock /usr/bin/php /var/www/$APP_DIR/artisan swoole:http restart >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
     fi
 
     if [[ ${PRODUCTION^^} == Y* ]] || [[ ${WRITE_CRONS^^} == Y* ]]; then
@@ -374,7 +375,7 @@ _nginx() {
             sudo bash -c "echo '127.0.0.1 $DOMAIN' >>/etc/hosts"
         fi
 
-        docker-compose build --no-cache nginx
+        docker-compose build --no-cache nginx || docker-compose restart nginx
     fi
 }
 
@@ -393,7 +394,7 @@ _redis() {
         sed -i "s|^#COPY|COPY|" $LARADOCK_PATH/redis/Dockerfile
         sed -i 's|^CMD.*|CMD ["redis-server", "/usr/local/etc/redis/redis.conf"]|' $LARADOCK_PATH/redis/Dockerfile
 
-        docker-compose build --no-cache redis || docker-compose restart redis
+        docker-compose build --no-cache redis
     fi
 }
 
