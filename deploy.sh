@@ -250,11 +250,10 @@ _crontab() {
         sudo bash -c "echo '@weekly root truncate -s 0 /var/lib/docker/containers/*/*-json.log' >>/etc/crontab"
     fi
 
-    rm -fv $LARADOCK_PATH/workspace/crontab/laradock
     if ! grep -q "^RUN systemctl enable cron || systemctl enable crond" $LARADOCK_PATH/workspace/Dockerfile; then
         echo "RUN systemctl enable cron || systemctl enable crond" >>$LARADOCK_PATH/workspace/Dockerfile
     fi
-    rm -fv $LARADOCK_PATH/workspace/crontab/$APP_DIR
+    truncate -s 0 $LARADOCK_PATH/workspace/crontab/$APP_DIR
     echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan schedule:run --no-interaction >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
     echo "@reboot laradock /usr/bin/php /var/www/$APP_DIR/artisan queue:work --sleep=3 --tries=3 --no-interaction >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
     echo "@reboot laradock /usr/bin/php /var/www/$APP_DIR/artisan swoole:http restart 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
@@ -283,7 +282,6 @@ _mysql() {
             rm -fv $LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/*.example
             INITDB_FILE="$LARADOCK_PATH/$DB_ENGINE/docker-entrypoint-initdb.d/$APP_DIR.sql"
             if [[ ! -f $INITDB_FILE ]]; then
-                touch $INITDB_FILE
                 SQL="DROP USER IF EXISTS 'default'@'%';"
                 SQL+="CREATE USER IF NOT EXISTS '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';"
                 SQL+="ALTER USER '$DB_USERNAME'@'%' IDENTIFIED BY '$DB_PASSWORD';"
@@ -291,7 +289,6 @@ _mysql() {
                 SQL+="GRANT ALL ON $DB_DATABASE.* TO '$DB_USERNAME'@'%';"
                 SQL+="FLUSH PRIVILEGES;"
                 IFS=';' read -r -a SQL_ARRAY <<<$SQL
-                rm -fv $INITDB_FILE
                 for QUERY in "${SQL_ARRAY[@]}"; do
                     echo "$QUERY;" >>$INITDB_FILE
                 done
