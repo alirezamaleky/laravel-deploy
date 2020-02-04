@@ -254,7 +254,7 @@ _crontab() {
     fi
     rm -fv $LARADOCK_PATH/workspace/crontab/$APP_DIR
     echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan schedule:run >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
-    echo "@reboot laradock /usr/bin/php /var/www/$APP_DIR/artisan queue:work --sleep=3 --tries=3 --daemon >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
+    echo "@reboot laradock /usr/bin/php /var/www/$APP_DIR/artisan queue:work --sleep=3 --tries=3 --no-interaction >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
     echo "@reboot laradock /usr/bin/php /var/www/$APP_DIR/artisan swoole:http restart >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
 
     if [[ ${PRODUCTION^^} == Y* ]]; then
