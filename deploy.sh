@@ -349,7 +349,7 @@ _swoole() {
         if grep -q "SWOOLE_HTTP_PORT" $LARAVEL_PATH/.env; then
             sed -i "s|SWOOLE_HTTP_PORT=.*|SWOOLE_HTTP_PORT=$SWOOLE_PORT|" $LARAVEL_PATH/.env
         else
-            echo -e"\n\nSWOOLE_HTTP_PORT=$SWOOLE_PORT" >>$LARAVEL_PATH/.env
+            echo -e "\n\nSWOOLE_HTTP_PORT=$SWOOLE_PORT" >>$LARAVEL_PATH/.env
         fi
 
         if grep -q "SWOOLE_HTTP_HOST" $LARAVEL_PATH/.env; then
