@@ -127,7 +127,7 @@ _getenv() {
         fi
     fi
 
-    if [[ ${FORCE_UPDATE^^} == Y* ]] && (
+    if ([[ ${INSTALL^^} == Y* ]] || [[ ${FORCE_UPDATE^^} == Y* ]]) && (
         ! grep -q "/var/www/$APP_PATH" $LARADOCK_PATH/workspace/crontab/laradock ||
             ! grep -q "cd $LARADOCK_PATH && docker-compose up" /etc/crontab ||
             ! grep -q "$SCRIPT_PATH --target deploy --path $APP_PATH" /etc/crontab
@@ -224,10 +224,8 @@ _setenv() {
         sed -i "s|DB_HOST=.*|DB_HOST=$DB_ENGINE|" $LARAVEL_PATH/.env
         sed -i "s|REDIS_HOST=.*|REDIS_HOST=redis|" $LARAVEL_PATH/.env
 
-        sed -i "s|LOG_CHANNEL=.*|LOG_CHANNEL=daily|" $LARAVEL_PATH/.env
         sed -i "s|BROADCAST_DRIVER=.*|BROADCAST_DRIVER=redis|" $LARAVEL_PATH/.env
         sed -i "s|CACHE_DRIVER=.*|CACHE_DRIVER=redis|" $LARAVEL_PATH/.env
-        sed -i "s|QUEUE_CONNECTION=.*|QUEUE_CONNECTION=sync|" $LARAVEL_PATH/.env
         sed -i "s|SESSION_DRIVER=.*|SESSION_DRIVER=redis|" $LARAVEL_PATH/.env
 
         sed -i "s|APP_NAME=.*|APP_NAME=$APP_NAME|" $LARAVEL_PATH/.env
