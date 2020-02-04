@@ -110,10 +110,6 @@ _getenv() {
         read -p "Is the project in production? [y/n] " PRODUCTION
     fi
 
-    if [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]] && [[ ${RESET_WORKSPACE^^} != Y* ]]; then
-        read -e -p "RESET_DATABASE [y/n]? " -i "n" RESET_DATABASE
-    fi
-
     if [[ -f $LARAVEL_PATH/.env ]]; then
         DB_DATABASE=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d "=" -f2)
         DB_USERNAME=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d "=" -f2)
@@ -311,10 +307,6 @@ _mysql() {
                 done
                 RELOAD_DATABASE="y"
             fi
-            if [[ ${RESET_DATABASE^^} == Y* ]]; then
-                sudo rm -fvr ~/.laradock/data/$DB_ENGINE
-                docker-compose build $DB_ENGINE
-            fi
             docker-compose up -d $DB_ENGINE
         fi
 
@@ -439,7 +431,7 @@ _git() {
 }
 
 _up() {
-    if [[ $TARGET == "deploy" ]]; then
+    if [[ ${INSTALL^^} != Y* ]]; then
         sudo docker-compose build --compress $CONTAINERS workspace
     fi
     docker-compose up -d $CONTAINERS workspace
