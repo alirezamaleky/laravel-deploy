@@ -58,7 +58,6 @@ _format() {
         RESET_WORKSPACE="y"
 
         read -p "RESET_LARADOCK [y/n]? " RESET_LARADOCK
-        echo $RESET_LARADOCK
         if [[ ${RESET_LARADOCK^^} == Y* ]]; then
             if [[ ! -z $(docker container ls -aq) ]]; then
                 docker container stop $(docker container ls -aq)
