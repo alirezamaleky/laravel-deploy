@@ -59,11 +59,11 @@ _format() {
 
         read -p "RESET_LARADOCK [y/n]? " RESET_LARADOCK
         if [[ ${RESET_LARADOCK^^} == Y* ]]; then
-            if [[ ! -z $(docker container ls -aq) ]]; then
-                docker container stop $(docker container ls -aq)
-                docker container rm -fv $(docker container ls -aq)
+            if [[ ! -z $(docker ps -a -q) ]]; then
+                docker stop $(docker ps -a -q)
+                docker rm -fv $(docker ps -a -q)
             fi
-            docker system prune -f --volumes
+            docker system prune --force --volumes
             sudo rm -fvr ~/.laradock $LARADOCK_PATH
 
             sudo sed -i "s|.*$SCRIPT_PATH.*||" /etc/crontab
@@ -440,7 +440,7 @@ _git() {
 
 _up() {
     if [[ $TARGET == "deploy" ]]; then
-        sudo docker-compose build --compress --no-cache $CONTAINERS workspace
+        sudo docker-compose build --compress $CONTAINERS workspace
     fi
     docker-compose up -d $CONTAINERS workspace
     if [[ $TARGET == "deploy" ]]; then
