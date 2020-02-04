@@ -242,7 +242,7 @@ _crontab() {
             echo "" >$LARADOCK_PATH/workspace/crontab/laradock
         fi
         if ! grep -q "/var/www/$APP_PATH" $LARADOCK_PATH/workspace/crontab/laradock; then
-            echo "* * * * * laradock /usr/bin/php /var/www/$APP_PATH/artisan schedule:run >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
+            echo -e "\n* * * * * laradock /usr/bin/php /var/www/$APP_PATH/artisan schedule:run >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
             echo "@reboot laradock /usr/bin/php /var/www/$APP_PATH/artisan queue:work --timeout=60 --sleep=3 >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
             echo "@reboot laradock /usr/bin/php /var/www/$APP_PATH/artisan swoole:http restart >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/laradock
             docker-compose build --no-cache workspace
@@ -326,7 +326,7 @@ _swoole() {
         if grep -q "SWOOLE_HTTP_PORT" $LARAVEL_PATH/.env; then
             sed -i "s|SWOOLE_HTTP_PORT=.*|SWOOLE_HTTP_PORT=$SWOOLE_PORT|" $LARAVEL_PATH/.env
         else
-            echo "SWOOLE_HTTP_PORT=$SWOOLE_PORT" >>$LARAVEL_PATH/.env
+            echo -e"\n\nSWOOLE_HTTP_PORT=$SWOOLE_PORT" >>$LARAVEL_PATH/.env
         fi
 
         if grep -q "SWOOLE_HTTP_HOST" $LARAVEL_PATH/.env; then
