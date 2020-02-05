@@ -261,26 +261,28 @@ _setenv() {
 }
 
 _crontab() {
-    if ! grep -q "^RUN systemctl enable cron || systemctl enable crond" $LARADOCK_PATH/workspace/Dockerfile; then
-        echo "RUN systemctl enable cron || systemctl enable crond" >>$LARADOCK_PATH/workspace/Dockerfile
-    fi
-    truncate -s 0 $LARADOCK_PATH/workspace/crontab/$APP_DIR
-    echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan swoole:http restart 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
-    echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan schedule:run --no-interaction >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
-    echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan queue:work --stop-when-empty && /usr/bin/php /var/www/$APP_DIR/artisan queue:work --sleep=3 --tries=3 --no-interaction >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
-
-    if ! grep -q "truncate -s 0 /var/lib/docker/containers/" /etc/crontab; then
-        sudo bash -c "echo '@weekly root truncate -s 0 /var/lib/docker/containers/*/*-json.log' >>/etc/crontab"
-    fi
-    if [[ ${PRODUCTION^^} == Y* ]]; then
-        sudo systemctl enable cron || sudo systemctl enable crond
-
-        if ! grep -q "cd $LARADOCK_PATH && docker-compose up" /etc/crontab; then
-            sudo bash -c "echo '@reboot root cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS >/dev/null 2>&1' >>/etc/crontab"
+    if [[ $TARGET == "deploy" ]]; then
+        if ! grep -q "^RUN systemctl enable cron || systemctl enable crond" $LARADOCK_PATH/workspace/Dockerfile; then
+            echo "RUN systemctl enable cron || systemctl enable crond" >>$LARADOCK_PATH/workspace/Dockerfile
         fi
+        truncate -s 0 $LARADOCK_PATH/workspace/crontab/$APP_DIR
+        echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan swoole:http restart 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
+        echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan schedule:run --no-interaction >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
+        echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan queue:work --stop-when-empty && /usr/bin/php /var/www/$APP_DIR/artisan queue:work --sleep=3 --tries=3 --no-interaction >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
 
-        if ! grep -q "$SCRIPT_PATH --target deploy --path $APP_DIR" /etc/crontab; then
-            sudo bash -c "echo '0 5 * * * root  $SCRIPT_PATH --target deploy --path $APP_DIR >/dev/null 2>&1' >>/etc/crontab"
+        if ! grep -q "truncate -s 0 /var/lib/docker/containers/" /etc/crontab; then
+            sudo bash -c "echo '@weekly root truncate -s 0 /var/lib/docker/containers/*/*-json.log' >>/etc/crontab"
+        fi
+        if [[ ${PRODUCTION^^} == Y* ]]; then
+            sudo systemctl enable cron || sudo systemctl enable crond
+
+            if ! grep -q "cd $LARADOCK_PATH && docker-compose up" /etc/crontab; then
+                sudo bash -c "echo '@reboot root cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS >/dev/null 2>&1' >>/etc/crontab"
+            fi
+
+            if ! grep -q "$SCRIPT_PATH --target deploy --path $APP_DIR" /etc/crontab; then
+                sudo bash -c "echo '0 5 * * * root  $SCRIPT_PATH --target deploy --path $APP_DIR >/dev/null 2>&1' >>/etc/crontab"
+            fi
         fi
     fi
 }
@@ -333,6 +335,10 @@ _puppeteer() {
         echo "RUN mkdir -p /usr/lib/node_modules/puppeteer/" >>$LARADOCK_PATH/php-fpm/Dockerfile
         echo "RUN ln -s $CHROMIUM_PATH /usr/lib/node_modules/puppeteer/" >>$LARADOCK_PATH/php-fpm/Dockerfile
         echo "RUN chmod -R o+rx $CHROMIUM_PATH /usr/lib/node_modules/puppeteer/" >>$LARADOCK_PATH/php-fpm/Dockerfile
+
+        if [[ ${INSTALL^^} != Y* ]]; then
+            docker-compose build --compress workspace
+        fi
     fi
 }
 
