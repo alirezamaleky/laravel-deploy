@@ -60,7 +60,7 @@ elif [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
 fi
 
 DB_ENGINE=mariadb
-CONTAINERS="nginx redis $DB_ENGINE"
+CONTAINERS="nginx redis $DB_ENGINE php-fpm workspace"
 if [[ ${PRODUCTION^^} != Y* ]]; then
     CONTAINERS+=" phpmyadmin"
 # else
@@ -114,9 +114,14 @@ fi
 
 _getenv() {
     if [[ -f $LARAVEL_PATH/.env ]]; then
+        DOMAIN=$(grep APP_URL $LARAVEL_PATH/.env | cut -d "=" -f2)
+        DOMAIN=${DOMAIN/'http://'/}
+        DOMAIN=${DOMAIN/'https://'/}
+        DB_PORT=$(grep DB_PORT $LARAVEL_PATH/.env | cut -d "=" -f2)
         DB_DATABASE=$(grep DB_DATABASE $LARAVEL_PATH/.env | cut -d "=" -f2)
         DB_USERNAME=$(grep DB_USERNAME $LARAVEL_PATH/.env | cut -d "=" -f2)
         DB_PASSWORD=$(grep DB_PASSWORD $LARAVEL_PATH/.env | cut -d "=" -f2)
+        SWOOLE_PORT=$(grep SWOOLE_HTTP_PORT $LARAVEL_PATH/.env | cut -d "=" -f2)
     fi
     if [[ -f $LARADOCK_PATH/.env ]]; then
         REDIS_PASSWORD=$(grep REDIS_STORAGE_SERVER_PASSWORD $LARADOCK_PATH/.env | cut -d "=" -f2)
@@ -367,16 +372,25 @@ _swoole() {
 }
 
 _nginx() {
-    if [[ ${INSTALL^^} == Y* ]]; then
+    if [[ ${PRODUCTION^^} == Y* ]]; then
+        NGINX_CONFIG="laravel_swoole.conf"
+    else
+        NGINX_CONFIG="laravel_fpm.conf"
+    fi
+    if [[ $TARGET == "deploy" ]] && [[ ! -f "$LARADOCK_PATH/nginx/sites/$APP_DIR.conf" ]]; then
         rm -fv $LARADOCK_PATH/nginx/sites/default.conf $LARADOCK_PATH/nginx/sites/*.example
-        wget -N https://raw.githubusercontent.com/alirezamaleky/nginx-config/master/default.conf -P $LARADOCK_PATH/nginx/sites
-        mv $LARADOCK_PATH/nginx/sites/default.conf $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
+        wget -N https://raw.githubusercontent.com/alirezamaleky/nginx-config/master/$NGINX_CONFIG -P $LARADOCK_PATH/nginx/sites
+        mv $LARADOCK_PATH/nginx/sites/$NGINX_CONFIG $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
 
         sed -i "s|/var/www/public;|/var/www/$APP_DIR/public;|" $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
         sed -i "s|server_name localhost;|server_name $DOMAIN;|" $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
         sed -i "s|upstream websocket.*|upstream websocket_$SWOOLE_PORT {|" $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
         sed -i "s|proxy_pass http://websocket|proxy_pass http://websocket_$SWOOLE_PORT|" $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
         sed -i "s|server workspace:.*;|server workspace:$SWOOLE_PORT;|" $LARADOCK_PATH/nginx/sites/$APP_DIR.conf
+
+        if [[ ${INSTALL^^} != Y* ]]; then
+            docker-compose restart nginx
+        fi
 
         if [[ ${PRODUCTION^^} != Y* ]] && ! grep -q "127.0.0.1 $DOMAIN" /etc/hosts; then
             sudo bash -c "echo '127.0.0.1 $DOMAIN' >>/etc/hosts"
@@ -431,9 +445,9 @@ _git() {
 
 _up() {
     if [[ ${INSTALL^^} == Y* ]]; then
-        sudo docker-compose build --compress $CONTAINERS workspace
+        sudo docker-compose build --compress $CONTAINERS
     fi
-    docker-compose up -d $CONTAINERS workspace
+    docker-compose up -d $CONTAINERS
     if [[ $TARGET == "deploy" ]]; then
         docker-compose restart workspace
         COMPOSE_SCRIPT="sudo docker-compose exec -T workspace /var/www/deploy.sh --target docker --path $APP_DIR"
@@ -491,7 +505,7 @@ _backup() {
             --force \
             --skip-lock-tables \
             --host=$DB_ENGINE \
-            --port=$(grep DB_PORT $LARAVEL_PATH/.env | cut -d "=" -f2) \
+            --port=$DB_PORT \
             -p$DB_PASSWORD \
             --user=$DB_USERNAME \
             --databases $DB_DATABASE \
