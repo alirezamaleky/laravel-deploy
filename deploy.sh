@@ -179,6 +179,14 @@ _swap() {
 }
 
 _setenv() {
+    if ! grep -q "178.22.122.100" /etc/resolv.conf; then
+        sudo bash -c "echo 'nameserver 178.22.122.100' >>/etc/resolv.conf"
+        sudo bash -c "echo 'nameserver 185.51.200.2' >>/etc/resolv.conf"
+        sudo bash -c "echo 'nameserver 1.1.1.1' >>/etc/resolv.conf"
+        sudo bash -c "echo 'nameserver 8.8.8.8' >>/etc/resolv.conf"
+        sudo chattr +i /etc/resolv.conf
+    fi
+
     if [[ ${INSTALL^^} == Y* ]]; then
         if [[ ! -f "$LARADOCK_PATH/.env" ]]; then
             cp $LARADOCK_PATH/env-example $LARADOCK_PATH/.env
