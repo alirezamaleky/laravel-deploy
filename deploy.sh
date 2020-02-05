@@ -180,6 +180,7 @@ _swap() {
 
 _setenv() {
     if ! grep -q "178.22.122.100" /etc/resolv.conf; then
+        sudo chattr -i /etc/resolv.conf
         sudo bash -c "echo 'nameserver 178.22.122.100' >>/etc/resolv.conf"
         sudo bash -c "echo 'nameserver 185.51.200.2' >>/etc/resolv.conf"
         sudo bash -c "echo 'nameserver 1.1.1.1' >>/etc/resolv.conf"
@@ -262,9 +263,9 @@ _crontab() {
         echo "RUN systemctl enable cron || systemctl enable crond" >>$LARADOCK_PATH/workspace/Dockerfile
     fi
     truncate -s 0 $LARADOCK_PATH/workspace/crontab/$APP_DIR
+    echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan swoole:http restart 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
     echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan schedule:run --no-interaction >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
-    echo "@reboot laradock /usr/bin/php /var/www/$APP_DIR/artisan queue:work --sleep=3 --tries=3 --no-interaction >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
-    echo "@reboot laradock /usr/bin/php /var/www/$APP_DIR/artisan swoole:http restart 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
+    echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan queue:work --stop-when-empty && /usr/bin/php /var/www/$APP_DIR/artisan queue:work --sleep=3 --tries=3 --no-interaction >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
 
     if [[ ${PRODUCTION^^} == Y* ]]; then
         sudo systemctl enable cron || sudo systemctl enable crond
