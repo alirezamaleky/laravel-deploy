@@ -429,7 +429,7 @@ _git() {
         sudo git -C $LARAVEL_PATH checkout -f $LARAVEL_PATH
     fi
 
-    if [[ ${INSTALL^^} != Y* ]]; then
+    if [[ $TARGET == "deploy" ]] && [[ ${INSTALL^^} != Y* ]]; then
         git -C $LARAVEL_PATH fetch origin master
         DIFF_SCRIPT="git -C $LARAVEL_PATH diff master origin/master --name-only --"
         if [[ $($DIFF_SCRIPT yarn.lock package.json package-lock.json resources/fonts/ resources/images/ resources/js/ resources/css/ resources/scss/ resources/sass/ resources/vue/) ]]; then
