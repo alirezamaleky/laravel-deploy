@@ -175,7 +175,7 @@ _laradock() {
 }
 
 _swap() {
-    if [[ ! -f /swapfile ]]; then
+    if [[ $TARGET == "deploy" ]] && [[ ! -f /swapfile ]]; then
         sudo fallocate -l 4G /swapfile
         sudo chmod 600 /swapfile
         sudo mkswap /swapfile
@@ -184,7 +184,7 @@ _swap() {
 }
 
 _setenv() {
-    if ! grep -q "178.22.122.100" /etc/resolv.conf; then
+    if [[ $TARGET == "deploy" ]] && ! grep -q "178.22.122.100" /etc/resolv.conf; then
         sudo chattr -i /etc/resolv.conf
         sudo bash -c "echo 'nameserver 178.22.122.100' >>/etc/resolv.conf"
         sudo bash -c "echo 'nameserver 185.51.200.2' >>/etc/resolv.conf"
@@ -400,7 +400,7 @@ _nginx() {
             docker-compose restart nginx
         fi
 
-        if [[ ${PRODUCTION^^} != Y* ]] && ! grep -q "127.0.0.1 $DOMAIN" /etc/hosts; then
+        if [[ $TARGET == "deploy" ]] && [[ ${PRODUCTION^^} != Y* ]] && ! grep -q "127.0.0.1 $DOMAIN" /etc/hosts; then
             sudo bash -c "echo '127.0.0.1 $DOMAIN' >>/etc/hosts"
         fi
     fi
@@ -424,7 +424,7 @@ _redis() {
 }
 
 _git() {
-    if [[ ${PRODUCTION^^} == Y* ]] && [[ $TARGET == "deploy" ]]; then
+    if [[ $TARGET == "deploy" ]] && [[ ${PRODUCTION^^} == Y* ]]; then
         sudo git -C $LARAVEL_PATH checkout -f master
         sudo git -C $LARAVEL_PATH checkout -f $LARAVEL_PATH
     fi
@@ -446,7 +446,7 @@ _git() {
         fi
     fi
 
-    if [[ ${PRODUCTION^^} == Y* ]] && [[ $TARGET == "deploy" ]]; then
+    if [[ $TARGET == "deploy" ]] && [[ ${PRODUCTION^^} == Y* ]]; then
         git -C $LARAVEL_PATH pull origin master
     fi
 }
