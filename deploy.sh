@@ -277,7 +277,7 @@ _crontab() {
             sudo systemctl enable cron || sudo systemctl enable crond
 
             if ! grep -q "cd $LARADOCK_PATH && docker-compose up" /etc/crontab; then
-                sudo bash -c "echo '@reboot root cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS >/dev/null 2>&1' >>/etc/crontab"
+                sudo bash -c "echo '* * * * * root cd $LARADOCK_PATH && docker-compose up -d $CONTAINERS >/dev/null 2>&1' >>/etc/crontab"
             fi
 
             if ! grep -q "$SCRIPT_PATH --target deploy --path $APP_DIR" /etc/crontab; then
