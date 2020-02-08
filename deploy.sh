@@ -138,6 +138,8 @@ _getenv() {
             read -e -p "MAIL_ENCRYPTION: " -i "tls" MAIL_ENCRYPTION
         fi
 
+        read -p "Do you want swoole? [y/n] " SWOOLE
+
         DB_DATABASE="${APP_DIR}_db"
         DB_USERNAME="${APP_DIR}_user"
         DB_PASSWORD=$(openssl rand -base64 15)
@@ -380,7 +382,7 @@ _swoole() {
 }
 
 _nginx() {
-    if [[ ${PRODUCTION^^} == Y* ]]; then
+    if [[ ${PRODUCTION^^} == Y* ]] || [[ ${SWOOLE^^} == Y* ]]; then
         NGINX_CONFIG="laravel_swoole.conf"
     else
         NGINX_CONFIG="laravel_fpm.conf"
