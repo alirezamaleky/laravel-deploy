@@ -82,7 +82,8 @@ _format() {
             sudo rm -fvr ~/.laradock $LARADOCK_PATH
 
             sudo sed -i "s|.*$SCRIPT_PATH.*||" /etc/crontab
-            sudo sed -i "s|.*truncate -s 0 /var/lib/docker/containers.*||" /etc/crontab
+
+            truncate -s 0 /var/lib/docker/containers/*/*-json.log
         else
             SWOOLE_PORT=$(grep SWOOLE_HTTP_PORT $LARAVEL_PATH/.env | cut -d "=" -f2)
             if [[ ! -z $SWOOLE_PORT ]]; then
@@ -272,9 +273,6 @@ _crontab() {
         echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan schedule:run --no-interaction >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
         echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan queue:work --stop-when-empty && /usr/bin/php /var/www/$APP_DIR/artisan queue:work --sleep=3 --tries=3 --no-interaction >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
 
-        if ! grep -q "truncate -s 0 /var/lib/docker/containers/" /etc/crontab; then
-            sudo bash -c "echo '@weekly root truncate -s 0 /var/lib/docker/containers/*/*-json.log' >>/etc/crontab"
-        fi
         if [[ ${PRODUCTION^^} == Y* ]]; then
             sudo systemctl enable cron || sudo systemctl enable crond
 
