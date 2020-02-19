@@ -53,7 +53,7 @@ if [[ ! -d "$LARADOCK_PATH" ]] || [[ ! -d "$LARAVEL_PATH/vendor" ]] || [[ ! -d "
     INSTALL=${INSTALL:-y}
 fi
 
-if [[ -f $LARAVEL_PATH/.env ]] && [[ $(grep APP_ENV $LARAVEL_PATH/.env | cut -d "=" -f2) == "production" ]]; then
+if ([[ "$*" != *-f* ]] && [[ "$*" != *--format* ]]) && [[ -f $LARAVEL_PATH/.env ]] && [[ $(grep APP_ENV $LARAVEL_PATH/.env | cut -d "=" -f2) == "production" ]]; then
     PRODUCTION="y"
 elif [[ ${INSTALL^^} == Y* ]] && [[ $TARGET != "docker" ]]; then
     read -p "Is the project in production? [y/n] " PRODUCTION
