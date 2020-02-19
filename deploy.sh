@@ -326,19 +326,35 @@ _mysql() {
 }
 
 _puppeteer() {
-    if [[ $TARGET == "deploy" ]] && ! grep -q "puppeteer" $LARADOCK_PATH/php-fpm/Dockerfile; then
-        echo -e "\nUSER root" >>$LARADOCK_PATH/php-fpm/Dockerfile
-        echo "RUN curl -sL https://deb.nodesource.com/setup_13.x | bash -" >>$LARADOCK_PATH/php-fpm/Dockerfile
-        echo "RUN apt-get install -y nodejs" >>$LARADOCK_PATH/php-fpm/Dockerfile
-        echo "RUN apt-get install -y ca-certificates fonts-liberation gcc g++ gconf-service libappindicator1 libasound2 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 libnss3 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 lsb-release make nodejs wget xdg-utils" >>$LARADOCK_PATH/php-fpm/Dockerfile
-        echo "RUN npm install --global yarn" >>$LARADOCK_PATH/php-fpm/Dockerfile
-        echo "RUN yarn global add puppeteer" >>$LARADOCK_PATH/php-fpm/Dockerfile
-        echo "RUN mkdir -p /usr/lib/node_modules/puppeteer/" >>$LARADOCK_PATH/php-fpm/Dockerfile
-        echo "RUN ln -s /usr/local/share/.config/yarn/global/node_modules/puppeteer/.local-chromium /usr/lib/node_modules/puppeteer/" >>$LARADOCK_PATH/php-fpm/Dockerfile
-        echo "RUN chmod -R o+rx /usr/lib/node_modules/puppeteer/" >>$LARADOCK_PATH/php-fpm/Dockerfile
+    if [[ $TARGET == "deploy" ]]; then
+        PUPPETEER_SCRIPT="\nUSER root;"
+        PUPPETEER_SCRIPT+="RUN curl -sL https://deb.nodesource.com/setup_13.x | bash -;"
+        PUPPETEER_SCRIPT+="RUN apt-get install -y nodejs;"
+        PUPPETEER_SCRIPT+="RUN apt-get install -y ca-certificates fonts-liberation gcc g++ gconf-service libappindicator1 libasound2 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 libnss3 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 lsb-release make nodejs wget xdg-utils;"
+        PUPPETEER_SCRIPT+="RUN npm install --global yarn;"
+        PUPPETEER_SCRIPT+="RUN yarn global add puppeteer;"
+        PUPPETEER_SCRIPT+="RUN mkdir -p /usr/lib/node_modules/puppeteer/;"
+        PUPPETEER_SCRIPT+="RUN ln -s /usr/local/share/.config/yarn/global/node_modules/puppeteer/.local-chromium /usr/lib/node_modules/puppeteer/;"
+        PUPPETEER_SCRIPT+="RUN chmod -R o+rx /usr/lib/node_modules/puppeteer/;"
 
-        if [[ ${INSTALL^^} != Y* ]]; then
-            docker-compose build --compress php-fpm
+        IFS=';' read -r -a SCRIPT_ARRAY <<<$PUPPETEER_SCRIPT
+
+        if ! grep -q "puppeteer" $LARADOCK_PATH/php-fpm/Dockerfile; then
+            for SCRIPT in "${SCRIPT_ARRAY[@]}"; do
+                echo -e $SCRIPT >>$LARADOCK_PATH/php-fpm/Dockerfile
+            done
+            if [[ ${INSTALL^^} != Y* ]]; then
+                docker-compose build --compress php-fpm
+            fi
+        fi
+
+        if ! grep -q "puppeteer" $LARADOCK_PATH/workspace/Dockerfile; then
+            for SCRIPT in "${SCRIPT_ARRAY[@]}"; do
+                echo -e $SCRIPT >>$LARADOCK_PATH/workspace/Dockerfile
+            done
+            if [[ ${INSTALL^^} != Y* ]]; then
+                docker-compose build --compress workspace
+            fi
         fi
     fi
 }
