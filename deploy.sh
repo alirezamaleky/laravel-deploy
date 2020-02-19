@@ -85,10 +85,12 @@ _format() {
 
             truncate -s 0 /var/lib/docker/containers/*/*-json.log
         else
-            SWOOLE_PORT=$(grep SWOOLE_HTTP_PORT $LARAVEL_PATH/.env | cut -d "=" -f2)
-            if [[ ! -z $SWOOLE_PORT ]]; then
-                EXPOSE_PORT=$(grep EXPOSE $LARADOCK_PATH/workspace/Dockerfile | cut -d " " -f2)
-                sed -i "s|^EXPOSE .*|EXPOSE ${EXPOSE_PORT/$SWOOLE_PORT/}|" $LARADOCK_PATH/workspace/Dockerfile
+            if [[ -f $LARAVEL_PATH/.env ]]; then
+                SWOOLE_PORT=$(grep SWOOLE_HTTP_PORT $LARAVEL_PATH/.env | cut -d "=" -f2)
+                if [[ ! -z $SWOOLE_PORT ]]; then
+                    EXPOSE_PORT=$(grep EXPOSE $LARADOCK_PATH/workspace/Dockerfile | cut -d " " -f2)
+                    sed -i "s|^EXPOSE .*|EXPOSE ${EXPOSE_PORT/$SWOOLE_PORT/}|" $LARADOCK_PATH/workspace/Dockerfile
+                fi
             fi
 
             rm -fv $LARADOCK_PATH/workspace/crontab/$APP_DIR
