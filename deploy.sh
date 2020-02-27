@@ -272,9 +272,9 @@ _crontab() {
         fi
         rm -fv $LARADOCK_PATH/workspace/crontab/laradock
         truncate -s 0 $LARADOCK_PATH/workspace/crontab/$APP_DIR
-        echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan swoole:http start >/dev/null" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
-        echo "* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan schedule:run --no-interaction >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
-        echo "* * * * * laradock if ps -Af | grep -v "grep" | grep -v "$APP_DIR/artisan queue:work"; then /usr/bin/php /var/www/$APP_DIR/artisan queue:work --sleep=3 --tries=3 --no-interaction; fi >/dev/null 2>&1" >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
+        echo '* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan swoole:http start >/dev/null' >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
+        echo '* * * * * laradock /usr/bin/php /var/www/$APP_DIR/artisan schedule:run --no-interaction >/dev/null 2>&1' >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
+        echo '* * * * * laradock if [[ -z $(ps -Af | grep -v "grep" | grep '"$APP_DIR/artisan queue:work"') ]]; then /usr/bin/php /var/www/$APP_DIR/artisan queue:work --sleep=3 --tries=3 --no-interaction; fi >/dev/null 2>&1' >>$LARADOCK_PATH/workspace/crontab/$APP_DIR
 
         if [[ ${PRODUCTION^^} == Y* ]]; then
             sudo systemctl enable cron || sudo systemctl enable crond
